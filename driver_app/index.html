@@ -1459,7 +1459,7 @@
         }).addTo(map);
         const d = haversine(fromLat, fromLon, toLat, toLon);
         document.getElementById('er-dist').textContent = d.toFixed(1);
-        document.getElementById('er-eta').textContent = Math.ceil(d / 60 * 60);
+        document.getElementById('er-eta').textContent = Math.ceil(d / 40 * 60);
         if (statusEl) { statusEl.textContent = '⚠️ Using straight-line (no internet)'; setTimeout(() => { if (statusEl) statusEl.style.display = 'none'; }, 3000); }
       }
 

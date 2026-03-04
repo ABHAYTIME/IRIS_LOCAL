@@ -3,8 +3,9 @@ echo ============================================
 echo   CrashGuard-S ^| Ambulance Driver App
 echo ============================================
 echo.
-echo [1/2] Installing dependencies...
-pip install flask opencv-python
+echo [1/2] Activating environment and installing dependencies...
+call ..\.venv\Scripts\activate.bat
+pip install flask opencv-python --quiet
 echo.
 echo [2/2] Starting server...
 echo.

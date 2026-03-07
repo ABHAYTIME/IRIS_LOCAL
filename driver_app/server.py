@@ -32,6 +32,17 @@ app.secret_key = SECRET_KEY
 _subscribers: dict[str, list[queue.Queue]] = {}  # unit_id -> [queues]
 _sub_lock = threading.Lock()
 
+# ── Operator SSE subscribers ─────────────────────────────────────────────────────
+_op_subscribers: list[queue.Queue] = []
+_op_lock = threading.Lock()
+
+def push_operator(event_type: str, data: dict):
+    msg = f"event: {event_type}\ndata: {json.dumps(data)}\n\n"
+    with _op_lock:
+        for q in list(_op_subscribers):
+            try: q.put_nowait(msg)
+            except queue.Full: pass
+
 def push_event(unit_id: str, event_type: str, data: dict):
     msg = f"event: {event_type}\ndata: {json.dumps(data)}\n\n"
     with _sub_lock:
@@ -46,6 +57,8 @@ def push_all(event_type: str, data: dict):
             for q in queues:
                 try: q.put_nowait(msg)
                 except queue.Full: pass
+    # Also push to operator subscribers
+    push_operator(event_type, data)
 
 # ── DB helpers ──────────────────────────────────────────────────────────────────
 def get_db():
@@ -532,6 +545,184 @@ def list_ambulances():
         res.append(d)
     return jsonify(res)
 
+# ══════════════════════════════════════════════════════════════════════════════
+# OPERATOR ROUTES
+# ══════════════════════════════════════════════════════════════════════════════
+
+@app.route("/operator")
+def operator_dashboard():
+    return send_from_directory(BASE_DIR, "operator_dashboard.html")
+
+@app.route("/operator/events")
+def operator_sse_stream():
+    q = queue.Queue(maxsize=50)
+    with _op_lock:
+        _op_subscribers.append(q)
+
+    def generate():
+        try:
+            yield f"event: connected\ndata: {json.dumps({'role': 'operator'})}\n\n"
+            while True:
+                try:
+                    msg = q.get(timeout=25)
+                    yield msg
+                except queue.Empty:
+                    yield ": heartbeat\n\n"
+        finally:
+            with _op_lock:
+                try: _op_subscribers.remove(q)
+                except: pass
+
+    return Response(generate(), mimetype="text/event-stream",
+                    headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+@app.route("/api/operator/stats")
+def operator_stats():
+    conn = get_db()
+    total   = conn.execute("SELECT COUNT(*) FROM INCIDENT").fetchone()[0]
+    active  = conn.execute("SELECT COUNT(*) FROM INCIDENT WHERE status IN ('new','waiting_for_driver')").fetchone()[0]
+    enroute = conn.execute("SELECT COUNT(*) FROM INCIDENT WHERE status='en_route'").fetchone()[0]
+    nunit   = conn.execute("SELECT COUNT(*) FROM INCIDENT WHERE status='no_unit_available'").fetchone()[0]
+    today   = conn.execute("SELECT COUNT(*) FROM INCIDENT WHERE status='resolved' AND date(timestamp)=date('now')").fetchone()[0]
+    avail   = conn.execute("SELECT COUNT(*) FROM AMBULANCE WHERE availability='available'").fetchone()[0]
+    on_duty = conn.execute("SELECT COUNT(*) FROM DRIVER WHERE on_duty=1").fetchone()[0]
+    conn.close()
+    return jsonify({
+        "total": total, "active": active, "en_route": enroute,
+        "no_unit": nunit, "resolved_today": today,
+        "available_units": avail, "on_duty_drivers": on_duty
+    })
+
+@app.route("/api/operator/incidents")
+def operator_incidents():
+    conn = get_db()
+    rows = conn.execute("""
+        SELECT i.incident_id, i.lat, i.long, i.status, i.timestamp, i.camera_id,
+               d.status as disp_status, d.dispatch_id,
+               a.unit_name, a.ambulance_id,
+               u.name as driver_name, u.badge,
+               e.snapshot_path
+        FROM INCIDENT i
+        LEFT JOIN DISPATCH d ON d.incident_id = i.incident_id
+            AND d.status NOT IN ('declined')
+        LEFT JOIN AMBULANCE a ON a.ambulance_id = d.ambulance_id
+        LEFT JOIN DRIVER dr ON dr.driver_id = d.driver_id
+        LEFT JOIN USER u ON u.user_id = dr.user_id
+        LEFT JOIN EVIDENCE e ON e.incident_id = i.incident_id
+        ORDER BY i.incident_id DESC LIMIT 50
+    """).fetchall()
+    conn.close()
+    result = []
+    seen = set()
+    for r in rows:
+        iid = r["incident_id"]
+        if iid in seen:
+            continue
+        seen.add(iid)
+        d = dict(r)
+        d["address"] = get_address(r["lat"], r["long"])
+        result.append(d)
+    return jsonify(result)
+
+@app.route("/api/operator/drivers")
+def operator_drivers():
+    conn = get_db()
+    rows = conn.execute("""
+        SELECT d.driver_id, d.on_duty, d.ambulance_id,
+               u.name, u.badge, u.email,
+               a.unit_name, a.availability, a.lat, a.long
+        FROM DRIVER d
+        JOIN USER u ON u.user_id = d.user_id
+        JOIN AMBULANCE a ON a.ambulance_id = d.ambulance_id
+        ORDER BY a.unit_name
+    """).fetchall()
+    conn.close()
+    return jsonify([dict(r) for r in rows])
+
+@app.route("/api/operator/override", methods=["POST"])
+def operator_override():
+    """Force-assign a specific ambulance to a failed/pending incident."""
+    data = request.json or {}
+    incident_id  = data.get("incident_id")
+    ambulance_id = data.get("ambulance_id")
+    if not incident_id or not ambulance_id:
+        return jsonify({"ok": False, "error": "Missing incident_id or ambulance_id"}), 400
+
+    conn = get_db()
+    inc = conn.execute("SELECT * FROM INCIDENT WHERE incident_id=?", (incident_id,)).fetchone()
+    amb = conn.execute(
+        "SELECT a.*, d.driver_id FROM AMBULANCE a JOIN DRIVER d ON d.ambulance_id=a.ambulance_id WHERE a.ambulance_id=?",
+        (ambulance_id,)).fetchone()
+
+    if not inc or not amb:
+        conn.close()
+        return jsonify({"ok": False, "error": "Incident or ambulance not found"}), 404
+
+    # Cancel any pending dispatches for this incident
+    conn.execute("UPDATE DISPATCH SET status='cancelled' WHERE incident_id=? AND status IN ('dispatched','en_route')", (incident_id,))
+
+    # Create new override dispatch
+    conn.execute(
+        "INSERT INTO DISPATCH (incident_id, ambulance_id, driver_id, status) VALUES (?,?,?,'dispatched')",
+        (incident_id, ambulance_id, amb["driver_id"])
+    )
+    conn.execute("UPDATE INCIDENT SET status='waiting_for_driver' WHERE incident_id=?", (incident_id,))
+    conn.execute("UPDATE AMBULANCE SET availability='unavailable' WHERE ambulance_id=?", (ambulance_id,))
+    conn.commit()
+    conn.close()
+
+    push_operator("override_dispatch", {
+        "incident_id": incident_id,
+        "unit": amb["unit_name"],
+        "operator_action": True
+    })
+    push_event(str(ambulance_id), "mission_assigned", {
+        "crash_id":    incident_id,
+        "unit_id":     amb["unit_name"],
+        "crash_lat":   inc["lat"],
+        "crash_lon":   inc["long"],
+        "distance_km": round(haversine(inc["lat"], inc["long"], amb["lat"], amb["long"]), 2),
+        "snapshot_url": f"/api/snapshot/{incident_id}",
+        "address":     get_address(inc["lat"], inc["long"]),
+        "timestamp":   datetime.now().isoformat(),
+        "operator_override": True
+    })
+    return jsonify({"ok": True, "unit": amb["unit_name"]})
+
+@app.route("/api/operator/cancel_dispatch", methods=["POST"])
+def operator_cancel_dispatch():
+    data = request.json or {}
+    incident_id = data.get("incident_id")
+    conn = get_db()
+    conn.execute("UPDATE DISPATCH SET status='cancelled' WHERE incident_id=? AND status IN ('dispatched','en_route')", (incident_id,))
+    conn.execute("UPDATE INCIDENT SET status='new' WHERE incident_id=?", (incident_id,))
+    # Re-check ambulance availability from remaining active dispatches
+    conn.commit()
+    conn.close()
+    push_operator("dispatch_cancelled", {"incident_id": incident_id})
+    return jsonify({"ok": True})
+
+@app.route("/api/operator/update_status", methods=["POST"])
+def operator_update_status():
+    data = request.json or {}
+    incident_id = data.get("incident_id")
+    status      = data.get("status")
+    allowed = ['new','waiting_for_driver','en_route','resolved','no_unit_available']
+    if status not in allowed:
+        return jsonify({"ok": False, "error": "Invalid status"}), 400
+    conn = get_db()
+    conn.execute("UPDATE INCIDENT SET status=? WHERE incident_id=?", (status, incident_id))
+    if status == 'resolved':
+        # Free up the ambulance
+        disp = conn.execute("SELECT ambulance_id FROM DISPATCH WHERE incident_id=? ORDER BY dispatch_id DESC LIMIT 1", (incident_id,)).fetchone()
+        if disp:
+            conn.execute("UPDATE AMBULANCE SET availability='available' WHERE ambulance_id=?", (disp["ambulance_id"],))
+            conn.execute("UPDATE DISPATCH SET status='arrived' WHERE incident_id=? AND status IN ('dispatched','en_route')", (incident_id,))
+    conn.commit()
+    conn.close()
+    push_all("status_update", {"crash_id": incident_id, "status": status})
+    return jsonify({"ok": True})
+
 # ── Main ────────────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     from init_db import init
@@ -540,8 +731,9 @@ if __name__ == "__main__":
     hostname = socket.gethostname()
     local_ip = socket.gethostbyname(hostname)
     print("\n" + "="*60)
-    print("  CrashGuard-S Driver App")
-    print(f"  Local:   http://localhost:5000")
-    print(f"  Network: http://{local_ip}:5000  <-- open this on your phone")
+    print("  CrashGuard-S")
+    print(f"  Driver App:        http://localhost:5000")
+    print(f"  Operator Dashboard: http://localhost:5000/operator")
+    print(f"  Network:           http://{local_ip}:5000")
     print("="*60 + "\n")
     app.run(host="0.0.0.0", debug=False, threaded=True, port=5000)

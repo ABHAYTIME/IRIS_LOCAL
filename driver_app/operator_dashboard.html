@@ -47,6 +47,7 @@
     body {
       height: 100%;
       width: 100%;
+      font-size: 17px;
       font-family: 'Inter', sans-serif;
       background: var(--bg);
       color: var(--text);
@@ -305,7 +306,7 @@
     .map-overlay {
       position: absolute;
       top: 12px;
-      left: 12px;
+      right: 12px;
       background: rgba(13, 21, 38, 0.85);
       backdrop-filter: blur(8px);
       border: 1px solid var(--border2);
@@ -684,10 +685,10 @@
     }
 
     .btn-override {
-      padding: 9px 18px;
+      padding: 12px 24px;
       background: var(--orange);
       border-radius: 8px;
-      font-size: 0.82rem;
+      font-size: 1.2rem;
       font-weight: 700;
       color: #fff;
       transition: opacity 0.2s;
@@ -1218,8 +1219,36 @@
     function setView(v) {
       document.querySelectorAll('.sb-btn').forEach(b => b.classList.remove('active'));
       document.getElementById('nav-' + v)?.classList.add('active');
-      // For this single-page layout all panels are always visible; nav is visual only
-      if (v === 'overview') map.invalidateSize();
+      
+      const mapPanel = document.getElementById('map-panel');
+      const rightPanel = document.getElementById('right-panel');
+      const incidentFeed = document.getElementById('incident-feed');
+      const fleetPanel = document.getElementById('fleet-panel');
+      const content = document.getElementById('content');
+
+      if (v === 'overview') {
+        mapPanel.style.display = 'block';
+        rightPanel.style.display = 'flex';
+        incidentFeed.style.display = 'flex';
+        fleetPanel.style.display = 'flex';
+        content.style.gridTemplateColumns = '1fr 380px';
+      } else if (v === 'incidents') {
+        mapPanel.style.display = 'none';
+        rightPanel.style.display = 'flex';
+        incidentFeed.style.display = 'flex';
+        fleetPanel.style.display = 'none';
+        content.style.gridTemplateColumns = '1fr';
+      } else if (v === 'fleet') {
+        mapPanel.style.display = 'none';
+        rightPanel.style.display = 'flex';
+        incidentFeed.style.display = 'none';
+        fleetPanel.style.display = 'flex';
+        content.style.gridTemplateColumns = '1fr';
+      }
+      
+      if (v === 'overview') {
+        setTimeout(() => map.invalidateSize(), 150);
+      }
     }
 
     // ── Fetch & Render ─────────────────────────────────────────────────────────────
@@ -1317,7 +1346,7 @@
       <div class="driver-avatar">${init}</div>
       <div class="driver-info">
         <div class="driver-name">${d.name}</div>
-        <div class="driver-meta">${d.badge} · ${d.unit_name}</div>
+        <div class="driver-meta">${d.phone} · ${d.unit_name}</div>
       </div>
       <span class="avail-pill ${avClass}">${avLabel}</span>
     </div>`;
@@ -1389,7 +1418,7 @@
     function buildAmbPopup(d) {
       const stati = !d.on_duty ? 'Off Duty' : d.availability === 'available' ? 'Available' : 'Busy';
       return `<div class="popup-title">🚑 ${d.unit_name}</div>
-    <div class="popup-row">${d.name} · ${d.badge}</div>
+    <div class="popup-row">${d.name} · ${d.phone}</div>
     <div class="popup-row">Status: <strong>${stati}</strong></div>
     <div class="popup-row">📍 ${Number(d.lat).toFixed(4)}, ${Number(d.long).toFixed(4)}</div>`;
     }
@@ -1453,7 +1482,7 @@
       document.getElementById('md-time').textContent = i.timestamp ? new Date(i.timestamp).toLocaleString('en-IN') : '—';
       document.getElementById('md-addr').textContent = i.address || `${Number(i.lat).toFixed(5)}, ${Number(i.long).toFixed(5)}`;
       document.getElementById('md-unit').textContent = i.unit_name || '— Not assigned';
-      document.getElementById('md-driver').textContent = i.driver_name ? `${i.driver_name} (${i.badge})` : '—';
+      document.getElementById('md-driver').textContent = i.driver_name ? `${i.driver_name} (${i.phone})` : '—';
 
       const snap = document.getElementById('modal-snapshot');
       snap.src = `/api/snapshot/${incidentId}`;

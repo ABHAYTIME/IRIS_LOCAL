@@ -11,6 +11,15 @@ from ultralytics import YOLO
 
 API_URL = "http://127.0.0.1:5000/api/new_alert"
 
+# Define locations for each camera/video footage
+CAMERA_LOCATIONS = {
+    "test1.mp4": {"lat": 10.5276, "lon": 76.2144, "location": "Thrissur Medical College"},
+    "test2.mp4": {"lat": 9.9312, "lon": 76.2673, "location": "General Hospital, Ernakulam"},
+    "test.mp4": {"lat": 10.0159, "lon": 76.3419, "location": "Aluva Junction"},
+    # Fallback location if video is not manually mapped
+    "default": {"lat": 10.5276, "lon": 76.2144, "location": "Unknown Location"}
+}
+
 def parse_args():
     parser = argparse.ArgumentParser(description="IRIS Accident Detector — Live Preview")
     parser.add_argument("videos", nargs="*", default=["test1.mp4"],
@@ -21,6 +30,10 @@ def parse_args():
     return parser.parse_args()
 
 def process_video(model, video_path, conf, imgsz):
+    # Lookup location associated with this video file
+    video_filename = os.path.basename(video_path)
+    loc_info = CAMERA_LOCATIONS.get(video_filename, CAMERA_LOCATIONS["default"])
+
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
         print(f"❌ Could not open: {video_path}")
@@ -77,9 +90,11 @@ def process_video(model, video_path, conf, imgsz):
                         cv2.imwrite(snap_path, frame)
                         print(f"zSNAPSHOT SAVED: {snap_path}")
                         
-                        # Send to Flask
+                        # Send to Flask with specific camera location
                         payload = {
-                            "location": "Main St", 
+                            "location": loc_info["location"],
+                            "lat": loc_info["lat"],
+                            "lon": loc_info["lon"],
                             "image_path": snap_path,
                             "time": time.strftime('%Y-%m-%dT%H:%M:%S', time.localtime(ts))
                         }

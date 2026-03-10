@@ -1,12 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>CrashGuard-S | Operator Command Center</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IRIS | Operator Command Center</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap"
+    rel="stylesheet" />
   <style>
     :root {
       --bg: #060c18;
@@ -16,13 +18,13 @@
       --border: #1a2a42;
       --border2: #21344f;
       --accent: #3b82f6;
-      --accent-glow: rgba(59,130,246,0.3);
+      --accent-glow: rgba(59, 130, 246, 0.3);
       --green: #10b981;
-      --green-glow: rgba(16,185,129,0.3);
+      --green-glow: rgba(16, 185, 129, 0.3);
       --red: #ef4444;
-      --red-glow: rgba(239,68,68,0.35);
+      --red-glow: rgba(239, 68, 68, 0.35);
       --amber: #f59e0b;
-      --amber-glow: rgba(245,158,11,0.3);
+      --amber-glow: rgba(245, 158, 11, 0.3);
       --purple: #8b5cf6;
       --orange: #f97316;
       --text: #f1f5f9;
@@ -32,595 +34,1260 @@
       --radius-sm: 10px;
       --sidebar-w: 64px;
     }
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { height: 100%; width: 100%; font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); overflow: hidden; }
-    button { font-family: 'Inter', sans-serif; cursor: pointer; border: none; outline: none; }
-    input, select { font-family: 'Inter', sans-serif; outline: none; }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html,
+    body {
+      height: 100%;
+      width: 100%;
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      overflow: hidden;
+    }
+
+    button {
+      font-family: 'Inter', sans-serif;
+      cursor: pointer;
+      border: none;
+      outline: none;
+    }
+
+    input,
+    select {
+      font-family: 'Inter', sans-serif;
+      outline: none;
+    }
 
     /* ── Layout ── */
-    #app { display: flex; height: 100vh; width: 100vw; }
+    #app {
+      display: flex;
+      height: 100vh;
+      width: 100vw;
+    }
 
     /* ── Sidebar ── */
     #sidebar {
-      width: var(--sidebar-w); flex-shrink: 0;
+      width: var(--sidebar-w);
+      flex-shrink: 0;
       background: var(--surface);
       border-right: 1px solid var(--border);
-      display: flex; flex-direction: column; align-items: center;
-      padding: 16px 0; gap: 8px; z-index: 100;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 16px 0;
+      gap: 8px;
+      z-index: 100;
     }
+
     .sb-logo {
-      width: 40px; height: 40px;
+      width: 40px;
+      height: 40px;
       background: linear-gradient(135deg, var(--accent), var(--purple));
-      border-radius: 12px; display: flex; align-items: center;
-      justify-content: center; font-size: 20px;
-      box-shadow: 0 0 20px var(--accent-glow); margin-bottom: 8px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      box-shadow: 0 0 20px var(--accent-glow);
+      margin-bottom: 8px;
     }
+
     .sb-btn {
-      width: 44px; height: 44px; border-radius: 12px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 20px; background: transparent; color: var(--muted2);
-      transition: all 0.2s; position: relative; cursor: pointer;
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      background: transparent;
+      color: var(--muted2);
+      transition: all 0.2s;
+      position: relative;
+      cursor: pointer;
     }
-    .sb-btn:hover { background: var(--surface2); color: var(--text); }
-    .sb-btn.active { background: rgba(59,130,246,0.15); color: var(--accent); box-shadow: 0 0 12px var(--accent-glow); }
+
+    .sb-btn:hover {
+      background: var(--surface2);
+      color: var(--text);
+    }
+
+    .sb-btn.active {
+      background: rgba(59, 130, 246, 0.15);
+      color: var(--accent);
+      box-shadow: 0 0 12px var(--accent-glow);
+    }
+
     .sb-btn .sb-tip {
-      position: absolute; left: calc(100% + 10px);
-      background: var(--surface3); border: 1px solid var(--border2);
-      border-radius: 8px; padding: 5px 10px; font-size: 0.72rem;
-      white-space: nowrap; pointer-events: none; opacity: 0;
-      transition: opacity 0.15s; color: var(--text);
+      position: absolute;
+      left: calc(100% + 10px);
+      background: var(--surface3);
+      border: 1px solid var(--border2);
+      border-radius: 8px;
+      padding: 5px 10px;
+      font-size: 0.72rem;
+      white-space: nowrap;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.15s;
+      color: var(--text);
     }
-    .sb-btn:hover .sb-tip { opacity: 1; }
-    .sb-sep { width: 32px; height: 1px; background: var(--border); margin: 4px 0; }
-    .sb-spacer { flex: 1; }
+
+    .sb-btn:hover .sb-tip {
+      opacity: 1;
+    }
+
+    .sb-sep {
+      width: 32px;
+      height: 1px;
+      background: var(--border);
+      margin: 4px 0;
+    }
+
+    .sb-spacer {
+      flex: 1;
+    }
+
     .conn-dot {
-      width: 10px; height: 10px; border-radius: 50%;
-      background: var(--muted); transition: background 0.4s;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--muted);
+      transition: background 0.4s;
     }
-    .conn-dot.live { background: var(--green); box-shadow: 0 0 8px var(--green-glow); }
+
+    .conn-dot.live {
+      background: var(--green);
+      box-shadow: 0 0 8px var(--green-glow);
+    }
 
     /* ── Main Area ── */
-    #main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    #main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
 
     /* ── Top Bar ── */
     #topbar {
-      height: 56px; flex-shrink: 0;
-      background: rgba(13,21,38,0.95);
+      height: 56px;
+      flex-shrink: 0;
+      background: rgba(13, 21, 38, 0.95);
       backdrop-filter: blur(12px);
       border-bottom: 1px solid var(--border);
-      display: flex; align-items: center; padding: 0 20px; gap: 16px;
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      gap: 16px;
     }
-    #topbar h1 { font-size: 1rem; font-weight: 800; flex: 1; }
-    #topbar h1 span { color: var(--accent); }
-    .topbar-time { font-size: 0.8rem; color: var(--muted2); }
+
+    #topbar h1 {
+      font-size: 1rem;
+      font-weight: 800;
+      flex: 1;
+    }
+
+    #topbar h1 span {
+      color: var(--accent);
+    }
+
+    .topbar-time {
+      font-size: 0.8rem;
+      color: var(--muted2);
+    }
+
     .btn-sim {
-      padding: 7px 16px; background: rgba(245,158,11,0.12);
-      border: 1px solid rgba(245,158,11,0.35); border-radius: 8px;
-      color: var(--amber); font-size: 0.78rem; font-weight: 600;
+      padding: 7px 16px;
+      background: rgba(245, 158, 11, 0.12);
+      border: 1px solid rgba(245, 158, 11, 0.35);
+      border-radius: 8px;
+      color: var(--amber);
+      font-size: 0.78rem;
+      font-weight: 600;
       transition: all 0.2s;
     }
-    .btn-sim:hover { background: rgba(245,158,11,0.22); }
+
+    .btn-sim:hover {
+      background: rgba(245, 158, 11, 0.22);
+    }
 
     /* ── Stats Bar ── */
     #statsbar {
-      display: flex; gap: 10px; padding: 10px 20px 0;
+      display: flex;
+      gap: 10px;
+      padding: 10px 20px 0;
       flex-shrink: 0;
     }
+
     .stat-pill {
-      flex: 1; background: var(--surface);
-      border: 1px solid var(--border2); border-radius: var(--radius-sm);
-      padding: 10px 14px; display: flex; flex-direction: column; gap: 2px;
+      flex: 1;
+      background: var(--surface);
+      border: 1px solid var(--border2);
+      border-radius: var(--radius-sm);
+      padding: 10px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
     }
-    .stat-pill .sp-val { font-size: 1.5rem; font-weight: 800; line-height: 1; }
-    .stat-pill .sp-lbl { font-size: 0.65rem; color: var(--muted2); text-transform: uppercase; letter-spacing: 0.6px; }
-    .sp-active .sp-val { color: var(--red); }
-    .sp-enroute .sp-val { color: var(--amber); }
-    .sp-nounit .sp-val { color: var(--orange); }
-    .sp-resolved .sp-val { color: var(--green); }
-    .sp-avail .sp-val { color: var(--accent); }
-    .sp-drivers .sp-val { color: var(--purple); }
+
+    .stat-pill .sp-val {
+      font-size: 1.5rem;
+      font-weight: 800;
+      line-height: 1;
+    }
+
+    .stat-pill .sp-lbl {
+      font-size: 0.65rem;
+      color: var(--muted2);
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+    }
+
+    .sp-active .sp-val {
+      color: var(--red);
+    }
+
+    .sp-enroute .sp-val {
+      color: var(--amber);
+    }
+
+    .sp-nounit .sp-val {
+      color: var(--orange);
+    }
+
+    .sp-resolved .sp-val {
+      color: var(--green);
+    }
+
+    .sp-avail .sp-val {
+      color: var(--accent);
+    }
+
+    .sp-drivers .sp-val {
+      color: var(--purple);
+    }
 
     /* ── Content Grid ── */
     #content {
-      flex: 1; display: grid;
+      flex: 1;
+      display: grid;
       grid-template-columns: 1fr 380px;
       grid-template-rows: 1fr;
-      gap: 10px; padding: 10px 20px 12px;
-      overflow: hidden; min-height: 0;
+      gap: 10px;
+      padding: 10px 20px 12px;
+      overflow: hidden;
+      min-height: 0;
     }
 
     /* ── Map Panel ── */
     #map-panel {
-      background: var(--surface); border: 1px solid var(--border2);
-      border-radius: var(--radius); overflow: hidden; position: relative;
+      background: var(--surface);
+      border: 1px solid var(--border2);
+      border-radius: var(--radius);
+      overflow: hidden;
+      position: relative;
     }
-    #map { width: 100%; height: 100%; }
+
+    #map {
+      width: 100%;
+      height: 100%;
+    }
+
     .map-overlay {
-      position: absolute; top: 12px; left: 12px;
-      background: rgba(13,21,38,0.85); backdrop-filter: blur(8px);
-      border: 1px solid var(--border2); border-radius: 10px;
-      padding: 8px 12px; font-size: 0.72rem; color: var(--muted2);
-      z-index: 500; display: flex; align-items: center; gap: 8px;
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      background: rgba(13, 21, 38, 0.85);
+      backdrop-filter: blur(8px);
+      border: 1px solid var(--border2);
+      border-radius: 10px;
+      padding: 8px 12px;
+      font-size: 0.72rem;
+      color: var(--muted2);
+      z-index: 500;
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
-    .map-legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+    .map-legend-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
 
     /* ── Right Panel ── */
-    #right-panel { display: flex; flex-direction: column; gap: 10px; overflow: hidden; min-height: 0; }
+    #right-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      overflow: hidden;
+      min-height: 0;
+    }
 
     /* ── Incident Feed ── */
     #incident-feed {
-      flex: 1; background: var(--surface); border: 1px solid var(--border2);
-      border-radius: var(--radius); display: flex; flex-direction: column;
-      overflow: hidden; min-height: 0;
+      flex: 1;
+      background: var(--surface);
+      border: 1px solid var(--border2);
+      border-radius: var(--radius);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      min-height: 0;
     }
+
     .panel-head {
-      padding: 12px 16px; border-bottom: 1px solid var(--border);
-      display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
     }
-    .panel-head h3 { font-size: 0.85rem; font-weight: 700; flex: 1; }
+
+    .panel-head h3 {
+      font-size: 0.85rem;
+      font-weight: 700;
+      flex: 1;
+    }
+
     .panel-head .ph-badge {
-      background: rgba(59,130,246,0.15); color: var(--accent);
-      font-size: 0.68rem; font-weight: 700; padding: 2px 8px;
+      background: rgba(59, 130, 246, 0.15);
+      color: var(--accent);
+      font-size: 0.68rem;
+      font-weight: 700;
+      padding: 2px 8px;
       border-radius: 20px;
     }
-    .panel-scroll { flex: 1; overflow-y: auto; padding: 8px; }
-    .panel-scroll::-webkit-scrollbar { width: 4px; }
-    .panel-scroll::-webkit-scrollbar-track { background: transparent; }
-    .panel-scroll::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+    .panel-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px;
+    }
+
+    .panel-scroll::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .panel-scroll::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .panel-scroll::-webkit-scrollbar-thumb {
+      background: var(--border2);
+      border-radius: 2px;
+    }
 
     .inc-card {
-      padding: 10px 12px; border-radius: var(--radius-sm);
-      border: 1px solid var(--border); background: var(--surface2);
-      margin-bottom: 6px; cursor: pointer; transition: all 0.2s;
+      padding: 10px 12px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      margin-bottom: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
     }
-    .inc-card:hover { border-color: var(--accent); background: var(--surface3); }
-    .inc-card.pulse-border { border-color: rgba(239,68,68,0.4); animation: inc-pulse 1.5s ease infinite alternate; }
-    @keyframes inc-pulse { to { border-color: rgba(239,68,68,0.9); box-shadow: 0 0 10px rgba(239,68,68,0.2); } }
-    .inc-row1 { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
-    .inc-id { font-size: 0.7rem; font-weight: 700; color: var(--muted2); }
+
+    .inc-card:hover {
+      border-color: var(--accent);
+      background: var(--surface3);
+    }
+
+    .inc-card.pulse-border {
+      border-color: rgba(239, 68, 68, 0.4);
+      animation: inc-pulse 1.5s ease infinite alternate;
+    }
+
+    @keyframes inc-pulse {
+      to {
+        border-color: rgba(239, 68, 68, 0.9);
+        box-shadow: 0 0 10px rgba(239, 68, 68, 0.2);
+      }
+    }
+
+    .inc-row1 {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+
+    .inc-id {
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: var(--muted2);
+    }
+
     .inc-status-badge {
-      font-size: 0.62rem; font-weight: 700; padding: 2px 7px;
-      border-radius: 20px; text-transform: uppercase; letter-spacing: 0.4px;
+      font-size: 0.62rem;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 20px;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
     }
-    .st-new { background: rgba(239,68,68,0.15); color: #fca5a5; border: 1px solid rgba(239,68,68,0.3); }
-    .st-waiting { background: rgba(245,158,11,0.15); color: #fcd34d; border: 1px solid rgba(245,158,11,0.3); }
-    .st-enroute { background: rgba(59,130,246,0.15); color: #93c5fd; border: 1px solid rgba(59,130,246,0.3); }
-    .st-resolved { background: rgba(16,185,129,0.15); color: #6ee7b7; border: 1px solid rgba(16,185,129,0.3); }
-    .st-nounit { background: rgba(249,115,22,0.15); color: #fdba74; border: 1px solid rgba(249,115,22,0.3); }
-    .inc-time { font-size: 0.65rem; color: var(--muted); margin-left: auto; }
-    .inc-row2 { font-size: 0.75rem; color: var(--muted2); }
-    .inc-row3 { font-size: 0.72rem; color: var(--muted); margin-top: 2px; display: flex; align-items: center; gap: 6px; }
+
+    .st-new {
+      background: rgba(239, 68, 68, 0.15);
+      color: #fca5a5;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    .st-waiting {
+      background: rgba(245, 158, 11, 0.15);
+      color: #fcd34d;
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    .st-enroute {
+      background: rgba(59, 130, 246, 0.15);
+      color: #93c5fd;
+      border: 1px solid rgba(59, 130, 246, 0.3);
+    }
+
+    .st-resolved {
+      background: rgba(16, 185, 129, 0.15);
+      color: #6ee7b7;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .st-nounit {
+      background: rgba(249, 115, 22, 0.15);
+      color: #fdba74;
+      border: 1px solid rgba(249, 115, 22, 0.3);
+    }
+
+    .inc-time {
+      font-size: 0.65rem;
+      color: var(--muted);
+      margin-left: auto;
+    }
+
+    .inc-row2 {
+      font-size: 0.75rem;
+      color: var(--muted2);
+    }
+
+    .inc-row3 {
+      font-size: 0.72rem;
+      color: var(--muted);
+      margin-top: 2px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
     .inc-unit-chip {
-      display: inline-flex; align-items: center; gap: 4px;
-      background: rgba(59,130,246,0.1); border-radius: 6px;
-      padding: 2px 6px; color: var(--accent); font-size: 0.65rem; font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(59, 130, 246, 0.1);
+      border-radius: 6px;
+      padding: 2px 6px;
+      color: var(--accent);
+      font-size: 0.65rem;
+      font-weight: 600;
     }
 
     /* ── Fleet Panel ── */
     #fleet-panel {
-      height: 240px; background: var(--surface); border: 1px solid var(--border2);
-      border-radius: var(--radius); display: flex; flex-direction: column;
+      height: 240px;
+      background: var(--surface);
+      border: 1px solid var(--border2);
+      border-radius: var(--radius);
+      display: flex;
+      flex-direction: column;
       overflow: hidden;
     }
-    .fleet-scroll { flex: 1; overflow-y: auto; padding: 8px; }
-    .fleet-scroll::-webkit-scrollbar { width: 4px; }
-    .fleet-scroll::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+    .fleet-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px;
+    }
+
+    .fleet-scroll::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .fleet-scroll::-webkit-scrollbar-thumb {
+      background: var(--border2);
+      border-radius: 2px;
+    }
 
     .driver-row {
-      display: flex; align-items: center; gap: 10px;
-      padding: 8px 10px; border-radius: var(--radius-sm);
-      border: 1px solid var(--border); background: var(--surface2);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--surface2);
       margin-bottom: 6px;
     }
+
     .driver-avatar {
-      width: 32px; height: 32px; border-radius: 50%;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
       background: linear-gradient(135deg, var(--accent), var(--purple));
-      display: flex; align-items: center; justify-content: center;
-      font-size: 12px; font-weight: 700; flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+      flex-shrink: 0;
     }
-    .driver-info { flex: 1; min-width: 0; }
-    .driver-name { font-size: 0.78rem; font-weight: 600; }
-    .driver-meta { font-size: 0.65rem; color: var(--muted2); }
+
+    .driver-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .driver-name {
+      font-size: 0.78rem;
+      font-weight: 600;
+    }
+
+    .driver-meta {
+      font-size: 0.65rem;
+      color: var(--muted2);
+    }
+
     .avail-pill {
-      font-size: 0.62rem; font-weight: 700; padding: 3px 8px;
+      font-size: 0.62rem;
+      font-weight: 700;
+      padding: 3px 8px;
       border-radius: 20px;
     }
-    .avail-on { background: rgba(16,185,129,0.15); color: var(--green); border: 1px solid rgba(16,185,129,0.3); }
-    .avail-off { background: rgba(71,85,105,0.2); color: var(--muted2); border: 1px solid var(--border); }
-    .avail-busy { background: rgba(245,158,11,0.15); color: var(--amber); border: 1px solid rgba(245,158,11,0.3); }
+
+    .avail-on {
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--green);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .avail-off {
+      background: rgba(71, 85, 105, 0.2);
+      color: var(--muted2);
+      border: 1px solid var(--border);
+    }
+
+    .avail-busy {
+      background: rgba(245, 158, 11, 0.15);
+      color: var(--amber);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
 
     /* ── Override Alert ── */
     #override-alert {
-      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
-      width: calc(100vw - var(--sidebar-w) - 48px); max-width: 680px;
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: calc(100vw - var(--sidebar-w) - 48px);
+      max-width: 680px;
       background: linear-gradient(135deg, #1a0a00, #2a1200);
-      border: 1px solid rgba(249,115,22,0.5);
+      border: 1px solid rgba(249, 115, 22, 0.5);
       border-radius: var(--radius);
       padding: 16px 20px;
-      box-shadow: 0 8px 48px rgba(249,115,22,0.25);
+      box-shadow: 0 8px 48px rgba(249, 115, 22, 0.25);
       z-index: 1000;
       display: none;
       animation: slide-up 0.35s ease;
     }
-    #override-alert.visible { display: block; }
-    @keyframes slide-up { from { transform: translateX(-50%) translateY(30px); opacity: 0; } to { transform: translateX(-50%) translateY(0); opacity: 1; } }
-    .oa-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
-    .oa-icon { font-size: 1.4rem; }
-    .oa-title { font-size: 0.88rem; font-weight: 800; color: var(--orange); flex: 1; }
-    .oa-close { width: 24px; height: 24px; border-radius: 6px; background: rgba(255,255,255,0.06); color: var(--muted2); font-size: 14px; display: flex; align-items: center; justify-content: center; }
-    .oa-body { display: flex; align-items: center; gap: 12px; }
-    .oa-info { flex: 1; font-size: 0.78rem; color: var(--muted2); }
-    .oa-info strong { color: var(--text); display: block; margin-bottom: 2px; }
+
+    #override-alert.visible {
+      display: block;
+    }
+
+    @keyframes slide-up {
+      from {
+        transform: translateX(-50%) translateY(30px);
+        opacity: 0;
+      }
+
+      to {
+        transform: translateX(-50%) translateY(0);
+        opacity: 1;
+      }
+    }
+
+    .oa-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .oa-icon {
+      font-size: 1.4rem;
+    }
+
+    .oa-title {
+      font-size: 0.88rem;
+      font-weight: 800;
+      color: var(--orange);
+      flex: 1;
+    }
+
+    .oa-close {
+      width: 24px;
+      height: 24px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--muted2);
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .oa-body {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .oa-info {
+      flex: 1;
+      font-size: 0.78rem;
+      color: var(--muted2);
+    }
+
+    .oa-info strong {
+      color: var(--text);
+      display: block;
+      margin-bottom: 2px;
+    }
+
     select.oa-select {
-      flex: 1; padding: 8px 12px; background: var(--surface2);
-      border: 1px solid var(--border2); border-radius: 8px;
-      color: var(--text); font-size: 0.78rem;
+      flex: 1;
+      padding: 8px 12px;
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 0.78rem;
     }
+
     .btn-override {
-      padding: 9px 18px; background: var(--orange);
-      border-radius: 8px; font-size: 0.82rem; font-weight: 700;
-      color: #fff; transition: opacity 0.2s;
+      padding: 9px 18px;
+      background: var(--orange);
+      border-radius: 8px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: #fff;
+      transition: opacity 0.2s;
     }
-    .btn-override:hover { opacity: 0.85; }
+
+    .btn-override:hover {
+      opacity: 0.85;
+    }
 
     /* ── Modal ── */
     #modal-overlay {
-      position: fixed; inset: 0; background: rgba(0,0,0,0.75);
-      backdrop-filter: blur(4px); z-index: 2000;
-      display: flex; align-items: center; justify-content: center;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(4px);
+      z-index: 2000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       display: none;
     }
-    #modal-overlay.open { display: flex; }
+
+    #modal-overlay.open {
+      display: flex;
+    }
+
     #modal {
-      background: var(--surface); border: 1px solid var(--border2);
-      border-radius: 20px; width: 560px; max-width: calc(100vw - 40px);
-      max-height: calc(100vh - 80px); overflow-y: auto;
-      box-shadow: 0 24px 80px rgba(0,0,0,0.6);
+      background: var(--surface);
+      border: 1px solid var(--border2);
+      border-radius: 20px;
+      width: 560px;
+      max-width: calc(100vw - 40px);
+      max-height: calc(100vh - 80px);
+      overflow-y: auto;
+      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6);
       animation: modal-in 0.2s ease;
     }
-    @keyframes modal-in { from { transform: scale(0.94); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+    @keyframes modal-in {
+      from {
+        transform: scale(0.94);
+        opacity: 0;
+      }
+
+      to {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+
     .modal-head {
-      padding: 20px 24px 16px; border-bottom: 1px solid var(--border);
-      display: flex; align-items: center; gap: 12px;
+      padding: 20px 24px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 12px;
     }
-    .modal-head h2 { font-size: 1rem; font-weight: 800; flex: 1; }
+
+    .modal-head h2 {
+      font-size: 1rem;
+      font-weight: 800;
+      flex: 1;
+    }
+
     .modal-close {
-      width: 30px; height: 30px; border-radius: 8px;
-      background: var(--surface2); color: var(--muted2);
-      font-size: 18px; display: flex; align-items: center; justify-content: center;
+      width: 30px;
+      height: 30px;
+      border-radius: 8px;
+      background: var(--surface2);
+      color: var(--muted2);
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
-    .modal-body { padding: 20px 24px; }
+
+    .modal-body {
+      padding: 20px 24px;
+    }
+
     #modal-snapshot {
-      width: 100%; height: 180px; object-fit: cover;
-      border-radius: 12px; background: #111; margin-bottom: 16px;
+      width: 100%;
+      height: 180px;
+      object-fit: cover;
+      border-radius: 12px;
+      background: #111;
+      margin-bottom: 16px;
     }
-    .modal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
-    .modal-field { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 14px; }
-    .mf-label { font-size: 0.62rem; font-weight: 600; color: var(--muted2); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 4px; }
-    .mf-val { font-size: 0.88rem; font-weight: 600; }
-    .modal-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+    .modal-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .modal-field {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 10px 14px;
+    }
+
+    .mf-label {
+      font-size: 0.62rem;
+      font-weight: 600;
+      color: var(--muted2);
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      margin-bottom: 4px;
+    }
+
+    .mf-val {
+      font-size: 0.88rem;
+      font-weight: 600;
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
     .btn-modal {
-      flex: 1; padding: 10px; border-radius: 10px;
-      font-size: 0.8rem; font-weight: 700; transition: opacity 0.2s;
+      flex: 1;
+      padding: 10px;
+      border-radius: 10px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      transition: opacity 0.2s;
     }
-    .btn-modal:hover { opacity: 0.85; }
-    .btn-resolve { background: linear-gradient(135deg, var(--green), #065f46); color: #fff; }
-    .btn-cancel-disp { background: var(--surface3); border: 1px solid var(--border2); color: var(--amber); }
-    .btn-modal-close { background: var(--surface3); border: 1px solid var(--border2); color: var(--muted2); }
-    .timeline { margin-bottom: 16px; }
-    .tl-item { display: flex; gap: 10px; margin-bottom: 8px; font-size: 0.75rem; }
-    .tl-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); margin-top: 4px; flex-shrink: 0; }
-    .tl-text { color: var(--muted2); }
-    .tl-text strong { color: var(--text); }
+
+    .btn-modal:hover {
+      opacity: 0.85;
+    }
+
+    .btn-resolve {
+      background: linear-gradient(135deg, var(--green), #065f46);
+      color: #fff;
+    }
+
+    .btn-cancel-disp {
+      background: var(--surface3);
+      border: 1px solid var(--border2);
+      color: var(--amber);
+    }
+
+    .btn-modal-close {
+      background: var(--surface3);
+      border: 1px solid var(--border2);
+      color: var(--muted2);
+    }
+
+    .timeline {
+      margin-bottom: 16px;
+    }
+
+    .tl-item {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 8px;
+      font-size: 0.75rem;
+    }
+
+    .tl-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent);
+      margin-top: 4px;
+      flex-shrink: 0;
+    }
+
+    .tl-text {
+      color: var(--muted2);
+    }
+
+    .tl-text strong {
+      color: var(--text);
+    }
 
     /* ── Leaflet customization ── */
     .leaflet-popup-content-wrapper {
-      background: var(--surface2); border: 1px solid var(--border2);
-      border-radius: 12px; color: var(--text); font-family: 'Inter', sans-serif;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      border-radius: 12px;
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
     }
-    .leaflet-popup-tip { background: var(--surface2); }
-    .leaflet-popup-content { font-size: 0.8rem; }
-    .popup-title { font-weight: 700; margin-bottom: 6px; }
-    .popup-row { color: var(--muted2); margin-bottom: 2px; }
-    .popup-actions { display: flex; gap: 6px; margin-top: 8px; }
+
+    .leaflet-popup-tip {
+      background: var(--surface2);
+    }
+
+    .leaflet-popup-content {
+      font-size: 0.8rem;
+    }
+
+    .popup-title {
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .popup-row {
+      color: var(--muted2);
+      margin-bottom: 2px;
+    }
+
+    .popup-actions {
+      display: flex;
+      gap: 6px;
+      margin-top: 8px;
+    }
+
     .popup-btn {
-      flex: 1; padding: 6px; border-radius: 8px; font-size: 0.72rem;
-      font-weight: 600; cursor: pointer; border: none; text-align: center;
+      flex: 1;
+      padding: 6px;
+      border-radius: 8px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      text-align: center;
     }
-    .popup-btn-red { background: rgba(239,68,68,0.2); color: #fca5a5; }
-    .popup-btn-blue { background: rgba(59,130,246,0.2); color: #93c5fd; }
+
+    .popup-btn-red {
+      background: rgba(239, 68, 68, 0.2);
+      color: #fca5a5;
+    }
+
+    .popup-btn-blue {
+      background: rgba(59, 130, 246, 0.2);
+      color: #93c5fd;
+    }
 
     /* Pulsing crash icon */
     @keyframes crash-pulse {
-      0% { transform: scale(1); opacity: 1; }
-      50% { transform: scale(1.5); opacity: 0.4; }
-      100% { transform: scale(1); opacity: 1; }
+      0% {
+        transform: scale(1);
+        opacity: 1;
+      }
+
+      50% {
+        transform: scale(1.5);
+        opacity: 0.4;
+      }
+
+      100% {
+        transform: scale(1);
+        opacity: 1;
+      }
     }
-    .crash-marker-wrapper { position: relative; }
+
+    .crash-marker-wrapper {
+      position: relative;
+    }
+
     .crash-marker-pulse {
-      position: absolute; width: 100%; height: 100%;
-      border-radius: 50%; border: 2px solid var(--red);
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      border: 2px solid var(--red);
       animation: crash-pulse 1.2s ease-in-out infinite;
     }
 
     /* Toast */
     #toast {
-      position: fixed; top: 68px; right: 20px;
-      background: var(--surface2); border: 1px solid var(--border2);
-      border-radius: 10px; padding: 10px 16px;
-      font-size: 0.8rem; font-weight: 500; z-index: 3000;
-      transform: translateX(120%); transition: transform 0.3s ease;
+      position: fixed;
+      top: 68px;
+      right: 20px;
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      border-radius: 10px;
+      padding: 10px 16px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      z-index: 3000;
+      transform: translateX(120%);
+      transition: transform 0.3s ease;
       max-width: 280px;
     }
-    #toast.show { transform: translateX(0); }
-    #toast.toast-ok { border-color: rgba(16,185,129,0.4); color: var(--green); }
-    #toast.toast-err { border-color: rgba(239,68,68,0.4); color: #fca5a5; }
-    #toast.toast-warn { border-color: rgba(245,158,11,0.4); color: var(--amber); }
+
+    #toast.show {
+      transform: translateX(0);
+    }
+
+    #toast.toast-ok {
+      border-color: rgba(16, 185, 129, 0.4);
+      color: var(--green);
+    }
+
+    #toast.toast-err {
+      border-color: rgba(239, 68, 68, 0.4);
+      color: #fca5a5;
+    }
+
+    #toast.toast-warn {
+      border-color: rgba(245, 158, 11, 0.4);
+      color: var(--amber);
+    }
   </style>
 </head>
+
 <body>
-<div id="app">
+  <div id="app">
 
-  <!-- Sidebar -->
-  <nav id="sidebar">
-    <div class="sb-logo">🛡️</div>
-    <button class="sb-btn active" id="nav-overview" onclick="setView('overview')">
-      🗺️<span class="sb-tip">Live Map</span>
-    </button>
-    <button class="sb-btn" id="nav-incidents" onclick="setView('incidents')">
-      🚨<span class="sb-tip">Incidents</span>
-    </button>
-    <button class="sb-btn" id="nav-fleet" onclick="setView('fleet')">
-      🚑<span class="sb-tip">Fleet</span>
-    </button>
-    <div class="sb-sep"></div>
-    <div class="sb-spacer"></div>
-    <div class="conn-dot" id="conn-dot" title="SSE Connection"></div>
-  </nav>
+    <!-- Sidebar -->
+    <nav id="sidebar">
+      <div class="sb-logo">🛡️</div>
+      <button class="sb-btn active" id="nav-overview" onclick="setView('overview')">
+        🗺️<span class="sb-tip">Live Map</span>
+      </button>
+      <button class="sb-btn" id="nav-incidents" onclick="setView('incidents')">
+        🚨<span class="sb-tip">Incidents</span>
+      </button>
+      <button class="sb-btn" id="nav-fleet" onclick="setView('fleet')">
+        🚑<span class="sb-tip">Fleet</span>
+      </button>
+      <div class="sb-sep"></div>
+      <div class="sb-spacer"></div>
+      <div class="conn-dot" id="conn-dot" title="SSE Connection"></div>
+    </nav>
 
-  <!-- Main -->
-  <div id="main">
-    <!-- Top Bar -->
-    <div id="topbar">
-      <h1>CrashGuard<span>-S</span> &nbsp;Operator Command Center</h1>
-      <span class="topbar-time" id="clock"></span>
-      <button class="btn-sim" onclick="simulateCrash()">⚡ Simulate Crash</button>
-    </div>
+    <!-- Main -->
+    <div id="main">
+      <!-- Top Bar -->
+      <div id="topbar">
+        <h1>IRIS &nbsp;Operator Command Center</h1>
+        <span class="topbar-time" id="clock"></span>
+      </div>
 
-    <!-- Stats Bar -->
-    <div id="statsbar">
-      <div class="stat-pill sp-active"><div class="sp-val" id="st-active">0</div><div class="sp-lbl">Active Incidents</div></div>
-      <div class="stat-pill sp-enroute"><div class="sp-val" id="st-enroute">0</div><div class="sp-lbl">En Route</div></div>
-      <div class="stat-pill sp-nounit"><div class="sp-val" id="st-nounit">0</div><div class="sp-lbl">No Unit Available</div></div>
-      <div class="stat-pill sp-resolved"><div class="sp-val" id="st-resolved">0</div><div class="sp-lbl">Resolved Today</div></div>
-      <div class="stat-pill sp-avail"><div class="sp-val" id="st-avail">0</div><div class="sp-lbl">Available Units</div></div>
-      <div class="stat-pill sp-drivers"><div class="sp-val" id="st-drivers">0</div><div class="sp-lbl">On-Duty Drivers</div></div>
-    </div>
-
-    <!-- Content -->
-    <div id="content">
-
-      <!-- Map -->
-      <div id="map-panel">
-        <div id="map"></div>
-        <div class="map-overlay">
-          <div class="map-legend-dot" style="background:var(--red)"></div> Crash &nbsp;
-          <div class="map-legend-dot" style="background:var(--green)"></div> Available &nbsp;
-          <div class="map-legend-dot" style="background:var(--amber)"></div> En Route &nbsp;
-          <div class="map-legend-dot" style="background:var(--muted)"></div> Off-Duty
+      <!-- Stats Bar -->
+      <div id="statsbar">
+        <div class="stat-pill sp-active">
+          <div class="sp-val" id="st-active">0</div>
+          <div class="sp-lbl">Active Incidents</div>
+        </div>
+        <div class="stat-pill sp-enroute">
+          <div class="sp-val" id="st-enroute">0</div>
+          <div class="sp-lbl">En Route</div>
+        </div>
+        <div class="stat-pill sp-nounit">
+          <div class="sp-val" id="st-nounit">0</div>
+          <div class="sp-lbl">No Unit Available</div>
+        </div>
+        <div class="stat-pill sp-resolved">
+          <div class="sp-val" id="st-resolved">0</div>
+          <div class="sp-lbl">Resolved Today</div>
+        </div>
+        <div class="stat-pill sp-avail">
+          <div class="sp-val" id="st-avail">0</div>
+          <div class="sp-lbl">Available Units</div>
+        </div>
+        <div class="stat-pill sp-drivers">
+          <div class="sp-val" id="st-drivers">0</div>
+          <div class="sp-lbl">On-Duty Drivers</div>
         </div>
       </div>
 
-      <!-- Right Panel -->
-      <div id="right-panel">
-        <!-- Incident Feed -->
-        <div id="incident-feed">
-          <div class="panel-head">
-            <h3>🚨 Incident Feed</h3>
-            <span class="ph-badge" id="inc-count">0</span>
-          </div>
-          <div class="panel-scroll" id="incident-list">
-            <div style="padding:24px;text-align:center;color:var(--muted);font-size:0.8rem;">No incidents yet</div>
-          </div>
-        </div>
+      <!-- Content -->
+      <div id="content">
 
-        <!-- Fleet Panel -->
-        <div id="fleet-panel">
-          <div class="panel-head">
-            <h3>🚑 Fleet Status</h3>
-            <span class="ph-badge" id="fleet-count">0</span>
-          </div>
-          <div class="fleet-scroll" id="fleet-list">
-            <div style="padding:16px;text-align:center;color:var(--muted);font-size:0.8rem;">Loading...</div>
+        <!-- Map -->
+        <div id="map-panel">
+          <div id="map"></div>
+          <div class="map-overlay">
+            <div class="map-legend-dot" style="background:var(--red)"></div> Crash &nbsp;
+            <div class="map-legend-dot" style="background:var(--green)"></div> Available &nbsp;
+            <div class="map-legend-dot" style="background:var(--amber)"></div> En Route &nbsp;
+            <div class="map-legend-dot" style="background:var(--muted)"></div> Off-Duty
           </div>
         </div>
+
+        <!-- Right Panel -->
+        <div id="right-panel">
+          <!-- Incident Feed -->
+          <div id="incident-feed">
+            <div class="panel-head">
+              <h3>🚨 Incident Feed</h3>
+              <span class="ph-badge" id="inc-count">0</span>
+            </div>
+            <div class="panel-scroll" id="incident-list">
+              <div style="padding:24px;text-align:center;color:var(--muted);font-size:0.8rem;">No incidents yet</div>
+            </div>
+          </div>
+
+          <!-- Fleet Panel -->
+          <div id="fleet-panel">
+            <div class="panel-head">
+              <h3>🚑 Fleet Status</h3>
+              <span class="ph-badge" id="fleet-count">0</span>
+            </div>
+            <div class="fleet-scroll" id="fleet-list">
+              <div style="padding:16px;text-align:center;color:var(--muted);font-size:0.8rem;">Loading...</div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
-</div>
 
-<!-- Override Alert -->
-<div id="override-alert">
-  <div class="oa-header">
-    <span class="oa-icon">⚠️</span>
-    <span class="oa-title">DISPATCH FAILED — Manual Override Required</span>
-    <button class="oa-close" onclick="closeOverride()">✕</button>
-  </div>
-  <div class="oa-body">
-    <div class="oa-info">
-      <strong id="oa-incident-label">Incident #—</strong>
-      <span id="oa-address">No unit was available for auto-dispatch.</span>
+  <!-- Override Alert -->
+  <div id="override-alert">
+    <div class="oa-header">
+      <span class="oa-icon">⚠️</span>
+      <span class="oa-title">DISPATCH FAILED — Manual Override Required</span>
+      <button class="oa-close" onclick="closeOverride()">✕</button>
     </div>
-    <select class="oa-select" id="oa-unit-select">
-      <option value="">Select Unit</option>
-    </select>
-    <button class="btn-override" onclick="doOverride()">⚡ Force Assign</button>
-  </div>
-</div>
-
-<!-- Incident Detail Modal -->
-<div id="modal-overlay" onclick="closeModal(event)">
-  <div id="modal">
-    <div class="modal-head">
-      <h2 id="modal-title">Incident Details</h2>
-      <span id="modal-status-badge" class="inc-status-badge"></span>
-      <button class="modal-close" onclick="closeModal()">✕</button>
-    </div>
-    <div class="modal-body">
-      <img id="modal-snapshot" src="" alt="Snapshot"/>
-      <div class="modal-grid">
-        <div class="modal-field"><div class="mf-label">Incident ID</div><div class="mf-val" id="md-id">—</div></div>
-        <div class="modal-field"><div class="mf-label">Time</div><div class="mf-val" id="md-time">—</div></div>
-        <div class="modal-field" style="grid-column:span 2"><div class="mf-label">Location</div><div class="mf-val" id="md-addr">—</div></div>
-        <div class="modal-field"><div class="mf-label">Assigned Unit</div><div class="mf-val" id="md-unit">—</div></div>
-        <div class="modal-field"><div class="mf-label">Driver</div><div class="mf-val" id="md-driver">—</div></div>
+    <div class="oa-body">
+      <div class="oa-info">
+        <strong id="oa-incident-label">Incident #—</strong>
+        <span id="oa-address">No unit was available for auto-dispatch.</span>
       </div>
-      <div class="timeline" id="md-timeline"></div>
-      <div class="modal-actions">
-        <button class="btn-modal btn-resolve" id="btn-resolve" onclick="resolveIncident()">✅ Mark Resolved</button>
-        <button class="btn-modal btn-cancel-disp" id="btn-cancel" onclick="cancelDispatch()">🔁 Cancel Dispatch</button>
-        <button class="btn-modal btn-modal-close" onclick="closeModal()">Close</button>
+      <select class="oa-select" id="oa-unit-select">
+        <option value="">Select Unit</option>
+      </select>
+      <button class="btn-override" onclick="doOverride()">⚡ Force Assign</button>
+    </div>
+  </div>
+
+  <!-- Incident Detail Modal -->
+  <div id="modal-overlay" onclick="closeModal(event)">
+    <div id="modal">
+      <div class="modal-head">
+        <h2 id="modal-title">Incident Details</h2>
+        <span id="modal-status-badge" class="inc-status-badge"></span>
+        <button class="modal-close" onclick="closeModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <img id="modal-snapshot" src="" alt="Snapshot" />
+        <div class="modal-grid">
+          <div class="modal-field">
+            <div class="mf-label">Incident ID</div>
+            <div class="mf-val" id="md-id">—</div>
+          </div>
+          <div class="modal-field">
+            <div class="mf-label">Time</div>
+            <div class="mf-val" id="md-time">—</div>
+          </div>
+          <div class="modal-field" style="grid-column:span 2">
+            <div class="mf-label">Location</div>
+            <div class="mf-val" id="md-addr">—</div>
+          </div>
+          <div class="modal-field">
+            <div class="mf-label">Assigned Unit</div>
+            <div class="mf-val" id="md-unit">—</div>
+          </div>
+          <div class="modal-field">
+            <div class="mf-label">Driver</div>
+            <div class="mf-val" id="md-driver">—</div>
+          </div>
+        </div>
+        <div class="timeline" id="md-timeline"></div>
+        <div class="modal-actions">
+          <button class="btn-modal btn-resolve" id="btn-resolve" onclick="resolveIncident()">✅ Mark Resolved</button>
+          <button class="btn-modal btn-cancel-disp" id="btn-cancel" onclick="cancelDispatch()">🔁 Cancel
+            Dispatch</button>
+          <button class="btn-modal btn-modal-close" onclick="closeModal()">Close</button>
+        </div>
       </div>
     </div>
   </div>
-</div>
 
-<!-- Toast -->
-<div id="toast"></div>
+  <!-- Toast -->
+  <div id="toast"></div>
 
-<script>
-// ── State ──────────────────────────────────────────────────────────────────────
-let state = {
-  incidents: [],
-  drivers: [],
-  stats: {},
-  overrideIncidentId: null,
-  modalIncidentId: null,
-};
+  <script>
+    // ── State ──────────────────────────────────────────────────────────────────────
+    let state = {
+      incidents: [],
+      drivers: [],
+      stats: {},
+      overrideIncidentId: null,
+      modalIncidentId: null,
+    };
 
-// ── Clock ──────────────────────────────────────────────────────────────────────
-function updateClock() {
-  const now = new Date();
-  document.getElementById('clock').textContent = now.toLocaleTimeString('en-IN', {hour12: false}) + '  ' + now.toLocaleDateString('en-IN');
-}
-setInterval(updateClock, 1000);
-updateClock();
+    // ── Clock ──────────────────────────────────────────────────────────────────────
+    function updateClock() {
+      const now = new Date();
+      document.getElementById('clock').textContent = now.toLocaleTimeString('en-IN', { hour12: false }) + '  ' + now.toLocaleDateString('en-IN');
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
 
-// ── Toast ──────────────────────────────────────────────────────────────────────
-let toastTimer;
-function showToast(msg, type='ok') {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.className = `show toast-${type}`;
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.className = '', 3200);
-}
+    // ── Toast ──────────────────────────────────────────────────────────────────────
+    let toastTimer;
+    function showToast(msg, type = 'ok') {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.className = `show toast-${type}`;
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => t.className = '', 3200);
+    }
 
-// ── Map Setup ──────────────────────────────────────────────────────────────────
-const map = L.map('map', { zoomControl: true, attributionControl: false }).setView([10.5276, 76.2144], 11);
-L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-  subdomains: 'abcd', maxZoom: 19
-}).addTo(map);
+    // ── Map Setup ──────────────────────────────────────────────────────────────────
+    const map = L.map('map', { zoomControl: true, attributionControl: false }).setView([10.5276, 76.2144], 11);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      subdomains: 'abcd', maxZoom: 19
+    }).addTo(map);
 
-const crashMarkers = {};   // incident_id -> marker
-const ambMarkers = {};     // ambulance_id -> marker
-const routeLines = {};     // incident_id -> polyline
+    const crashMarkers = {};   // incident_id -> marker
+    const ambMarkers = {};     // ambulance_id -> marker
+    const routeLines = {};     // incident_id -> polyline
 
-function crashIcon(id) {
-  return L.divIcon({
-    className: '',
-    html: `<div style="position:relative;width:30px;height:30px">
+    function crashIcon(id) {
+      return L.divIcon({
+        className: '',
+        html: `<div style="position:relative;width:30px;height:30px">
       <div style="position:absolute;inset:0;border-radius:50%;border:2.5px solid #ef4444;animation:crash-pulse 1.2s ease-in-out infinite;"></div>
       <div style="position:absolute;inset:5px;border-radius:50%;background:#ef4444;display:flex;align-items:center;justify-content:center;font-size:10px;">🔴</div>
     </div>`,
-    iconSize: [30, 30], iconAnchor: [15, 15]
-  });
-}
+        iconSize: [30, 30], iconAnchor: [15, 15]
+      });
+    }
 
-function ambIcon(avail) {
-  const c = avail === 'available' ? '#10b981' : avail === 'en_route' ? '#f59e0b' : '#475569';
-  return L.divIcon({
-    className: '',
-    html: `<div style="width:26px;height:26px;border-radius:50%;background:${c};border:2px solid rgba(255,255,255,0.4);display:flex;align-items:center;justify-content:center;font-size:13px;box-shadow:0 0 10px ${c}88">🚑</div>`,
-    iconSize: [26, 26], iconAnchor: [13, 13]
-  });
-}
+    function ambIcon(avail) {
+      const c = avail === 'available' ? '#10b981' : avail === 'en_route' ? '#f59e0b' : '#475569';
+      return L.divIcon({
+        className: '',
+        html: `<div style="width:26px;height:26px;border-radius:50%;background:${c};border:2px solid rgba(255,255,255,0.4);display:flex;align-items:center;justify-content:center;font-size:13px;box-shadow:0 0 10px ${c}88">🚑</div>`,
+        iconSize: [26, 26], iconAnchor: [13, 13]
+      });
+    }
 
-// ── Navigation ─────────────────────────────────────────────────────────────────
-function setView(v) {
-  document.querySelectorAll('.sb-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById('nav-' + v)?.classList.add('active');
-  // For this single-page layout all panels are always visible; nav is visual only
-  if (v === 'overview') map.invalidateSize();
-}
+    // ── Navigation ─────────────────────────────────────────────────────────────────
+    function setView(v) {
+      document.querySelectorAll('.sb-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById('nav-' + v)?.classList.add('active');
+      // For this single-page layout all panels are always visible; nav is visual only
+      if (v === 'overview') map.invalidateSize();
+    }
 
-// ── Fetch & Render ─────────────────────────────────────────────────────────────
-async function fetchAll() {
-  await Promise.all([fetchStats(), fetchIncidents(), fetchDrivers()]);
-}
+    // ── Fetch & Render ─────────────────────────────────────────────────────────────
+    async function fetchAll() {
+      await Promise.all([fetchStats(), fetchIncidents(), fetchDrivers()]);
+    }
 
-async function fetchStats() {
-  try {
-    const r = await fetch('/api/operator/stats');
-    const d = await r.json();
-    state.stats = d;
-    document.getElementById('st-active').textContent  = d.active;
-    document.getElementById('st-enroute').textContent = d.en_route;
-    document.getElementById('st-nounit').textContent  = d.no_unit;
-    document.getElementById('st-resolved').textContent= d.resolved_today;
-    document.getElementById('st-avail').textContent   = d.available_units;
-    document.getElementById('st-drivers').textContent = d.on_duty_drivers;
-  } catch(e) {}
-}
+    async function fetchStats() {
+      try {
+        const r = await fetch('/api/operator/stats');
+        const d = await r.json();
+        state.stats = d;
+        document.getElementById('st-active').textContent = d.active;
+        document.getElementById('st-enroute').textContent = d.en_route;
+        document.getElementById('st-nounit').textContent = d.no_unit;
+        document.getElementById('st-resolved').textContent = d.resolved_today;
+        document.getElementById('st-avail').textContent = d.available_units;
+        document.getElementById('st-drivers').textContent = d.on_duty_drivers;
+      } catch (e) { }
+    }
 
-async function fetchIncidents() {
-  try {
-    const r = await fetch('/api/operator/incidents');
-    state.incidents = await r.json();
-    renderIncidentList();
-    updateMap();
-    checkNoUnit();
-  } catch(e) {}
-}
+    async function fetchIncidents() {
+      try {
+        const r = await fetch('/api/operator/incidents');
+        state.incidents = await r.json();
+        renderIncidentList();
+        updateMap();
+        checkNoUnit();
+      } catch (e) { }
+    }
 
-async function fetchDrivers() {
-  try {
-    const r = await fetch('/api/operator/drivers');
-    state.drivers = await r.json();
-    renderFleet();
-    updateAmbulanceMarkers();
-  } catch(e) {}
-}
+    async function fetchDrivers() {
+      try {
+        const r = await fetch('/api/operator/drivers');
+        state.drivers = await r.json();
+        renderFleet();
+        updateAmbulanceMarkers();
+      } catch (e) { }
+    }
 
-// ── Incident List ──────────────────────────────────────────────────────────────
-function statusBadgeClass(s) {
-  if (s === 'new') return 'st-new';
-  if (s === 'waiting_for_driver') return 'st-waiting';
-  if (s === 'en_route') return 'st-enroute';
-  if (s === 'resolved') return 'st-resolved';
-  if (s === 'no_unit_available') return 'st-nounit';
-  return 'st-new';
-}
-function statusLabel(s) {
-  const m = {new:'NEW',waiting_for_driver:'WAITING',en_route:'EN ROUTE',resolved:'RESOLVED',no_unit_available:'NO UNIT'};
-  return m[s] || s.toUpperCase();
-}
-function fmtTime(ts) {
-  if (!ts) return '—';
-  try { return new Date(ts).toLocaleTimeString('en-IN', {hour:'2-digit',minute:'2-digit'}); } catch(e) { return ts; }
-}
+    // ── Incident List ──────────────────────────────────────────────────────────────
+    function statusBadgeClass(s) {
+      if (s === 'new') return 'st-new';
+      if (s === 'waiting_for_driver') return 'st-waiting';
+      if (s === 'en_route') return 'st-enroute';
+      if (s === 'resolved') return 'st-resolved';
+      if (s === 'no_unit_available') return 'st-nounit';
+      return 'st-new';
+    }
+    function statusLabel(s) {
+      const m = { new: 'NEW', waiting_for_driver: 'WAITING', en_route: 'EN ROUTE', resolved: 'RESOLVED', no_unit_available: 'NO UNIT' };
+      return m[s] || s.toUpperCase();
+    }
+    function fmtTime(ts) {
+      if (!ts) return '—';
+      try { return new Date(ts).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }); } catch (e) { return ts; }
+    }
 
-function renderIncidentList() {
-  const el = document.getElementById('incident-list');
-  document.getElementById('inc-count').textContent = state.incidents.length;
-  if (!state.incidents.length) {
-    el.innerHTML = '<div style="padding:24px;text-align:center;color:var(--muted);font-size:0.8rem;">No incidents yet</div>';
-    return;
-  }
-  el.innerHTML = state.incidents.map(i => {
-    const isActive = ['new','waiting_for_driver','no_unit_available'].includes(i.status);
-    return `<div class="inc-card ${isActive && i.status !== 'resolved' ? 'pulse-border':''}" onclick='openModal(${i.incident_id})'>
+    function renderIncidentList() {
+      const el = document.getElementById('incident-list');
+      document.getElementById('inc-count').textContent = state.incidents.length;
+      if (!state.incidents.length) {
+        el.innerHTML = '<div style="padding:24px;text-align:center;color:var(--muted);font-size:0.8rem;">No incidents yet</div>';
+        return;
+      }
+      el.innerHTML = state.incidents.map(i => {
+        const isActive = ['new', 'waiting_for_driver', 'no_unit_available'].includes(i.status);
+        return `<div class="inc-card ${isActive && i.status !== 'resolved' ? 'pulse-border' : ''}" onclick='openModal(${i.incident_id})'>
       <div class="inc-row1">
         <span class="inc-id">#${i.incident_id}</span>
         <span class="inc-status-badge ${statusBadgeClass(i.status)}">${statusLabel(i.status)}</span>
@@ -633,20 +1300,20 @@ function renderIncidentList() {
         ${i.status === 'no_unit_available' ? '<span style="color:var(--orange);font-weight:700">⚠️ Override needed</span>' : ''}
       </div>
     </div>`;
-  }).join('');
-}
+      }).join('');
+    }
 
-// ── Fleet Panel ────────────────────────────────────────────────────────────────
-function renderFleet() {
-  const el = document.getElementById('fleet-list');
-  document.getElementById('fleet-count').textContent = state.drivers.length;
-  if (!state.drivers.length) { el.innerHTML = '<div style="padding:16px;text-align:center;color:var(--muted);font-size:0.8rem;">No drivers</div>'; return; }
-  el.innerHTML = state.drivers.map(d => {
-    const busy = d.availability === 'unavailable' && d.on_duty;
-    const avClass = !d.on_duty ? 'avail-off' : busy ? 'avail-busy' : 'avail-on';
-    const avLabel = !d.on_duty ? 'Off Duty' : busy ? 'Busy' : 'Available';
-    const init = (d.name || '?').split(' ').map(n=>n[0]).join('').slice(0,2);
-    return `<div class="driver-row">
+    // ── Fleet Panel ────────────────────────────────────────────────────────────────
+    function renderFleet() {
+      const el = document.getElementById('fleet-list');
+      document.getElementById('fleet-count').textContent = state.drivers.length;
+      if (!state.drivers.length) { el.innerHTML = '<div style="padding:16px;text-align:center;color:var(--muted);font-size:0.8rem;">No drivers</div>'; return; }
+      el.innerHTML = state.drivers.map(d => {
+        const busy = d.availability === 'unavailable' && d.on_duty;
+        const avClass = !d.on_duty ? 'avail-off' : busy ? 'avail-busy' : 'avail-on';
+        const avLabel = !d.on_duty ? 'Off Duty' : busy ? 'Busy' : 'Available';
+        const init = (d.name || '?').split(' ').map(n => n[0]).join('').slice(0, 2);
+        return `<div class="driver-row">
       <div class="driver-avatar">${init}</div>
       <div class="driver-info">
         <div class="driver-name">${d.name}</div>
@@ -654,222 +1321,221 @@ function renderFleet() {
       </div>
       <span class="avail-pill ${avClass}">${avLabel}</span>
     </div>`;
-  }).join('');
-}
+      }).join('');
+    }
 
-// ── Map Update ─────────────────────────────────────────────────────────────────
-function updateMap() {
-  const active = new Set();
-  state.incidents.forEach(i => {
-    if (i.status === 'resolved') return;
-    active.add(i.incident_id);
-    const ll = [parseFloat(i.lat), parseFloat(i.long)];
-    if (!crashMarkers[i.incident_id]) {
-      const m = L.marker(ll, {icon: crashIcon(i.incident_id), zIndexOffset: 1000}).addTo(map);
-      m.bindPopup(buildCrashPopup(i));
-      crashMarkers[i.incident_id] = m;
-    } else {
-      crashMarkers[i.incident_id].setPopupContent(buildCrashPopup(i));
+    // ── Map Update ─────────────────────────────────────────────────────────────────
+    function updateMap() {
+      const active = new Set();
+      state.incidents.forEach(i => {
+        if (i.status === 'resolved') return;
+        active.add(i.incident_id);
+        const ll = [parseFloat(i.lat), parseFloat(i.long)];
+        if (!crashMarkers[i.incident_id]) {
+          const m = L.marker(ll, { icon: crashIcon(i.incident_id), zIndexOffset: 1000 }).addTo(map);
+          m.bindPopup(buildCrashPopup(i));
+          crashMarkers[i.incident_id] = m;
+        } else {
+          crashMarkers[i.incident_id].setPopupContent(buildCrashPopup(i));
+        }
+        // Route line
+        if (i.unit_name && i.ambulance_id) {
+          const driver = state.drivers.find(d => d.ambulance_id === i.ambulance_id);
+          if (driver) {
+            const a = [parseFloat(driver.lat), parseFloat(driver.long)];
+            if (routeLines[i.incident_id]) map.removeLayer(routeLines[i.incident_id]);
+            routeLines[i.incident_id] = L.polyline([ll, a], {
+              color: '#f59e0b', weight: 2, dashArray: '6 5', opacity: 0.7
+            }).addTo(map);
+          }
+        }
+      });
+      // Remove resolved markers
+      Object.keys(crashMarkers).forEach(id => {
+        if (!active.has(parseInt(id))) {
+          map.removeLayer(crashMarkers[id]);
+          delete crashMarkers[id];
+          if (routeLines[id]) { map.removeLayer(routeLines[id]); delete routeLines[id]; }
+        }
+      });
     }
-    // Route line
-    if (i.unit_name && i.ambulance_id) {
-      const driver = state.drivers.find(d => d.ambulance_id === i.ambulance_id);
-      if (driver) {
-        const a = [parseFloat(driver.lat), parseFloat(driver.long)];
-        if (routeLines[i.incident_id]) map.removeLayer(routeLines[i.incident_id]);
-        routeLines[i.incident_id] = L.polyline([ll, a], {
-          color:'#f59e0b', weight:2, dashArray:'6 5', opacity:0.7
-        }).addTo(map);
-      }
-    }
-  });
-  // Remove resolved markers
-  Object.keys(crashMarkers).forEach(id => {
-    if (!active.has(parseInt(id))) {
-      map.removeLayer(crashMarkers[id]);
-      delete crashMarkers[id];
-      if (routeLines[id]) { map.removeLayer(routeLines[id]); delete routeLines[id]; }
-    }
-  });
-}
 
-function updateAmbulanceMarkers() {
-  state.drivers.forEach(d => {
-    const ll = [parseFloat(d.lat), parseFloat(d.long)];
-    const status = !d.on_duty ? 'off' : d.availability;
-    if (!ambMarkers[d.ambulance_id]) {
-      const m = L.marker(ll, {icon: ambIcon(status)}).addTo(map);
-      m.bindPopup(buildAmbPopup(d));
-      ambMarkers[d.ambulance_id] = m;
-    } else {
-      ambMarkers[d.ambulance_id].setLatLng(ll).setIcon(ambIcon(status));
-      ambMarkers[d.ambulance_id].setPopupContent(buildAmbPopup(d));
+    function updateAmbulanceMarkers() {
+      state.drivers.forEach(d => {
+        const ll = [parseFloat(d.lat), parseFloat(d.long)];
+        const status = !d.on_duty ? 'off' : d.availability;
+        if (!ambMarkers[d.ambulance_id]) {
+          const m = L.marker(ll, { icon: ambIcon(status) }).addTo(map);
+          m.bindPopup(buildAmbPopup(d));
+          ambMarkers[d.ambulance_id] = m;
+        } else {
+          ambMarkers[d.ambulance_id].setLatLng(ll).setIcon(ambIcon(status));
+          ambMarkers[d.ambulance_id].setPopupContent(buildAmbPopup(d));
+        }
+      });
     }
-  });
-}
 
-function buildCrashPopup(i) {
-  return `<div class="popup-title">🔴 Incident #${i.incident_id}</div>
+    function buildCrashPopup(i) {
+      return `<div class="popup-title">🔴 Incident #${i.incident_id}</div>
     <div class="popup-row">📍 ${i.address || `${Number(i.lat).toFixed(4)}, ${Number(i.long).toFixed(4)}`}</div>
     <div class="popup-row">Status: <strong>${statusLabel(i.status)}</strong></div>
-    ${i.unit_name ? `<div class="popup-row">Unit: ${i.unit_name} · ${i.driver_name||''}</div>` : ''}
+    ${i.unit_name ? `<div class="popup-row">Unit: ${i.unit_name} · ${i.driver_name || ''}</div>` : ''}
     <div class="popup-actions">
       <button class="popup-btn popup-btn-blue" onclick="openModal(${i.incident_id})">Details</button>
-      ${i.status==='no_unit_available' ? `<button class="popup-btn popup-btn-red" onclick="triggerOverride(${i.incident_id},'${(i.address||'').replace(/'/g,'`')}')">⚠️ Override</button>` : ''}
+      ${i.status === 'no_unit_available' ? `<button class="popup-btn popup-btn-red" onclick="triggerOverride(${i.incident_id},'${(i.address || '').replace(/'/g, '`')}')">⚠️ Override</button>` : ''}
     </div>`;
-}
+    }
 
-function buildAmbPopup(d) {
-  const stati = !d.on_duty ? 'Off Duty' : d.availability === 'available' ? 'Available' : 'Busy';
-  return `<div class="popup-title">🚑 ${d.unit_name}</div>
+    function buildAmbPopup(d) {
+      const stati = !d.on_duty ? 'Off Duty' : d.availability === 'available' ? 'Available' : 'Busy';
+      return `<div class="popup-title">🚑 ${d.unit_name}</div>
     <div class="popup-row">${d.name} · ${d.badge}</div>
     <div class="popup-row">Status: <strong>${stati}</strong></div>
     <div class="popup-row">📍 ${Number(d.lat).toFixed(4)}, ${Number(d.long).toFixed(4)}</div>`;
-}
-
-// ── Override Logic ─────────────────────────────────────────────────────────────
-function checkNoUnit() {
-  const failed = state.incidents.find(i => i.status === 'no_unit_available');
-  if (failed) {
-    triggerOverride(failed.incident_id, failed.address);
-  } else {
-    closeOverride();
-  }
-}
-
-function triggerOverride(incidentId, address) {
-  state.overrideIncidentId = incidentId;
-  document.getElementById('oa-incident-label').textContent = `Incident #${incidentId}`;
-  document.getElementById('oa-address').textContent = address || 'Unknown location';
-  const sel = document.getElementById('oa-unit-select');
-  const avail = state.drivers.filter(d => d.on_duty && d.availability === 'available');
-  // Also include off-duty (operator can force)
-  const all = state.drivers;
-  sel.innerHTML = '<option value="">Select Unit to Force-Assign</option>' +
-    avail.map(d => `<option value="${d.ambulance_id}">🟢 ${d.unit_name} – ${d.name}</option>`).join('') +
-    (avail.length && all.length - avail.length > 0 ? '<option disabled>── Off-duty ──</option>' : '') +
-    all.filter(d => !d.on_duty || d.availability !== 'available')
-       .map(d => `<option value="${d.ambulance_id}">⚫ ${d.unit_name} – ${d.name} (${d.on_duty ? 'Busy' : 'Off-duty'})</option>`).join('');
-  document.getElementById('override-alert').classList.add('visible');
-}
-
-function closeOverride() {
-  document.getElementById('override-alert').classList.remove('visible');
-}
-
-async function doOverride() {
-  const ambId = parseInt(document.getElementById('oa-unit-select').value);
-  if (!ambId) { showToast('Please select a unit', 'warn'); return; }
-  const r = await fetch('/api/operator/override', {
-    method: 'POST', headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({incident_id: state.overrideIncidentId, ambulance_id: ambId})
-  });
-  const d = await r.json();
-  if (d.ok) {
-    showToast(`✅ ${d.unit} dispatched to incident #${state.overrideIncidentId}`, 'ok');
-    closeOverride();
-    fetchAll();
-  } else {
-    showToast('Override failed: ' + (d.error || 'Unknown error'), 'err');
-  }
-}
-
-// ── Modal ──────────────────────────────────────────────────────────────────────
-function openModal(incidentId) {
-  const i = state.incidents.find(x => x.incident_id === incidentId);
-  if (!i) return;
-  state.modalIncidentId = incidentId;
-  document.getElementById('modal-title').textContent = `Incident #${incidentId}`;
-  document.getElementById('modal-status-badge').className = `inc-status-badge ${statusBadgeClass(i.status)}`;
-  document.getElementById('modal-status-badge').textContent = statusLabel(i.status);
-  document.getElementById('md-id').textContent = `#${i.incident_id}`;
-  document.getElementById('md-time').textContent = i.timestamp ? new Date(i.timestamp).toLocaleString('en-IN') : '—';
-  document.getElementById('md-addr').textContent = i.address || `${Number(i.lat).toFixed(5)}, ${Number(i.long).toFixed(5)}`;
-  document.getElementById('md-unit').textContent = i.unit_name || '— Not assigned';
-  document.getElementById('md-driver').textContent = i.driver_name ? `${i.driver_name} (${i.badge})` : '—';
-
-  const snap = document.getElementById('modal-snapshot');
-  snap.src = `/api/snapshot/${incidentId}`;
-  snap.onerror = () => { snap.style.display='none'; };
-  snap.onload  = () => { snap.style.display='block'; };
-
-  // Timeline
-  const tl = document.getElementById('md-timeline');
-  tl.innerHTML = `<div class="tl-item"><div class="tl-dot" style="background:var(--red)"></div><div class="tl-text"><strong>Crash detected</strong> – ${new Date(i.timestamp||Date.now()).toLocaleString('en-IN')}</div></div>` +
-    (i.unit_name ? `<div class="tl-item"><div class="tl-dot"></div><div class="tl-text"><strong>${i.unit_name}</strong> dispatched (${i.driver_name || 'driver'})</div></div>` : '') +
-    (i.disp_status === 'en_route' ? `<div class="tl-item"><div class="tl-dot" style="background:var(--amber)"></div><div class="tl-text"><strong>En route</strong> to scene</div></div>` : '') +
-    (i.status === 'resolved' ? `<div class="tl-item"><div class="tl-dot" style="background:var(--green)"></div><div class="tl-text"><strong>Resolved</strong></div></div>` : '');
-
-  document.getElementById('btn-resolve').disabled = i.status === 'resolved';
-  document.getElementById('modal-overlay').classList.add('open');
-}
-
-function closeModal(e) {
-  if (e && e.target !== document.getElementById('modal-overlay')) return;
-  document.getElementById('modal-overlay').classList.remove('open');
-}
-
-async function resolveIncident() {
-  if (!state.modalIncidentId) return;
-  const r = await fetch('/api/operator/update_status', {
-    method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({incident_id: state.modalIncidentId, status: 'resolved'})
-  });
-  const d = await r.json();
-  if (d.ok) { showToast('✅ Incident resolved', 'ok'); closeModal(); fetchAll(); }
-}
-
-async function cancelDispatch() {
-  if (!state.modalIncidentId) return;
-  const r = await fetch('/api/operator/cancel_dispatch', {
-    method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({incident_id: state.modalIncidentId})
-  });
-  const d = await r.json();
-  if (d.ok) { showToast('🔁 Dispatch cancelled', 'warn'); closeModal(); fetchAll(); }
-}
-
-// ── Simulate Crash ─────────────────────────────────────────────────────────────
-async function simulateCrash() {
-  try {
-    const r = await fetch('/api/simulate_crash', {method:'POST'});
-    const d = await r.json();
-    if (d.ok) {
-      showToast(`🚨 Crash #${d.crash_id} simulated${d.assigned_to ? ' → ' + d.assigned_to : ' (no unit)'}`, d.assigned_to?'ok':'warn');
-      fetchAll();
     }
-  } catch(e) { showToast('Simulation failed', 'err'); }
-}
 
-// ── SSE ────────────────────────────────────────────────────────────────────────
-function connectSSE() {
-  const es = new EventSource('/operator/events');
-  const dot = document.getElementById('conn-dot');
+    // ── Override Logic ─────────────────────────────────────────────────────────────
+    function checkNoUnit() {
+      const failed = state.incidents.find(i => i.status === 'no_unit_available');
+      if (failed) {
+        triggerOverride(failed.incident_id, failed.address);
+      } else {
+        closeOverride();
+      }
+    }
 
-  es.addEventListener('connected', () => { dot.classList.add('live'); });
+    function triggerOverride(incidentId, address) {
+      state.overrideIncidentId = incidentId;
+      document.getElementById('oa-incident-label').textContent = `Incident #${incidentId}`;
+      document.getElementById('oa-address').textContent = address || 'Unknown location';
+      const sel = document.getElementById('oa-unit-select');
+      const avail = state.drivers.filter(d => d.on_duty && d.availability === 'available');
+      // Also include off-duty (operator can force)
+      const all = state.drivers;
+      sel.innerHTML = '<option value="">Select Unit to Force-Assign</option>' +
+        avail.map(d => `<option value="${d.ambulance_id}">🟢 ${d.unit_name} – ${d.name}</option>`).join('') +
+        (avail.length && all.length - avail.length > 0 ? '<option disabled>── Off-duty ──</option>' : '') +
+        all.filter(d => !d.on_duty || d.availability !== 'available')
+          .map(d => `<option value="${d.ambulance_id}">⚫ ${d.unit_name} – ${d.name} (${d.on_duty ? 'Busy' : 'Off-duty'})</option>`).join('');
+      document.getElementById('override-alert').classList.add('visible');
+    }
 
-  ['mission_assigned','status_update','availability_update','override_dispatch','dispatch_cancelled'].forEach(ev => {
-    es.addEventListener(ev, e => {
-      fetchAll();
-      const data = JSON.parse(e.data);
-      if (ev === 'mission_assigned') showToast(`🚑 ${data.unit_id || 'Unit'} dispatched to crash #${data.crash_id}`, 'ok');
-      if (ev === 'availability_update') showToast(`${data.driver} is now ${data.on_duty ? 'ON DUTY' : 'OFF DUTY'}`, 'warn');
-      if (ev === 'override_dispatch') showToast(`⚡ Override: ${data.unit} assigned to #${data.incident_id}`, 'ok');
-    });
-  });
+    function closeOverride() {
+      document.getElementById('override-alert').classList.remove('visible');
+    }
 
-  es.onerror = () => {
-    dot.classList.remove('live');
-    setTimeout(connectSSE, 4000);
-    es.close();
-  };
-}
+    async function doOverride() {
+      const ambId = parseInt(document.getElementById('oa-unit-select').value);
+      if (!ambId) { showToast('Please select a unit', 'warn'); return; }
+      const r = await fetch('/api/operator/override', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ incident_id: state.overrideIncidentId, ambulance_id: ambId })
+      });
+      const d = await r.json();
+      if (d.ok) {
+        showToast(`✅ ${d.unit} dispatched to incident #${state.overrideIncidentId}`, 'ok');
+        closeOverride();
+        fetchAll();
+      } else {
+        showToast('Override failed: ' + (d.error || 'Unknown error'), 'err');
+      }
+    }
 
-// ── Init ───────────────────────────────────────────────────────────────────────
-fetchAll();
-setInterval(fetchAll, 5000);
-connectSSE();
-setTimeout(() => map.invalidateSize(), 300);
-</script>
+    // ── Modal ──────────────────────────────────────────────────────────────────────
+    function openModal(incidentId) {
+      const i = state.incidents.find(x => x.incident_id === incidentId);
+      if (!i) return;
+      state.modalIncidentId = incidentId;
+      document.getElementById('modal-title').textContent = `Incident #${incidentId}`;
+      document.getElementById('modal-status-badge').className = `inc-status-badge ${statusBadgeClass(i.status)}`;
+      document.getElementById('modal-status-badge').textContent = statusLabel(i.status);
+      document.getElementById('md-id').textContent = `#${i.incident_id}`;
+      document.getElementById('md-time').textContent = i.timestamp ? new Date(i.timestamp).toLocaleString('en-IN') : '—';
+      document.getElementById('md-addr').textContent = i.address || `${Number(i.lat).toFixed(5)}, ${Number(i.long).toFixed(5)}`;
+      document.getElementById('md-unit').textContent = i.unit_name || '— Not assigned';
+      document.getElementById('md-driver').textContent = i.driver_name ? `${i.driver_name} (${i.badge})` : '—';
+
+      const snap = document.getElementById('modal-snapshot');
+      snap.src = `/api/snapshot/${incidentId}`;
+      snap.onerror = () => { snap.style.display = 'none'; };
+      snap.onload = () => { snap.style.display = 'block'; };
+
+      // Timeline
+      const tl = document.getElementById('md-timeline');
+      tl.innerHTML = `<div class="tl-item"><div class="tl-dot" style="background:var(--red)"></div><div class="tl-text"><strong>Crash detected</strong> – ${new Date(i.timestamp || Date.now()).toLocaleString('en-IN')}</div></div>` +
+        (i.unit_name ? `<div class="tl-item"><div class="tl-dot"></div><div class="tl-text"><strong>${i.unit_name}</strong> dispatched (${i.driver_name || 'driver'})</div></div>` : '') +
+        (i.disp_status === 'en_route' ? `<div class="tl-item"><div class="tl-dot" style="background:var(--amber)"></div><div class="tl-text"><strong>En route</strong> to scene</div></div>` : '') +
+        (i.status === 'resolved' ? `<div class="tl-item"><div class="tl-dot" style="background:var(--green)"></div><div class="tl-text"><strong>Resolved</strong></div></div>` : '');
+
+      document.getElementById('btn-resolve').disabled = i.status === 'resolved';
+      document.getElementById('modal-overlay').classList.add('open');
+    }
+
+    function closeModal(e) {
+      if (e && e.target !== document.getElementById('modal-overlay')) return;
+      document.getElementById('modal-overlay').classList.remove('open');
+    }
+
+    async function resolveIncident() {
+      if (!state.modalIncidentId) return;
+      const r = await fetch('/api/operator/update_status', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ incident_id: state.modalIncidentId, status: 'resolved' })
+      });
+      const d = await r.json();
+      if (d.ok) { showToast('✅ Incident resolved', 'ok'); closeModal(); fetchAll(); }
+    }
+
+    async function cancelDispatch() {
+      if (!state.modalIncidentId) return;
+      const r = await fetch('/api/operator/cancel_dispatch', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ incident_id: state.modalIncidentId })
+      });
+      const d = await r.json();
+      if (d.ok) { showToast('🔁 Dispatch cancelled', 'warn'); closeModal(); fetchAll(); }
+    }
+
+    // ── SSE ────────────────────────────────────────────────────────────────────────
+    function connectSSE() {
+      const es = new EventSource('/operator/events');
+      const dot = document.getElementById('conn-dot');
+
+      es.addEventListener('connected', () => { dot.classList.add('live'); });
+
+      ['mission_assigned', 'status_update', 'availability_update', 'override_dispatch', 'dispatch_cancelled', 'location_update'].forEach(ev => {
+        es.addEventListener(ev, e => {
+          if (ev !== 'location_update') fetchAll();
+          const data = JSON.parse(e.data);
+          
+          if (ev === 'mission_assigned') showToast(`🚑 ${data.unit_id || 'Unit'} dispatched to crash #${data.crash_id}`, 'ok');
+          if (ev === 'availability_update') showToast(`${data.driver} is now ${data.on_duty ? 'ON DUTY' : 'OFF DUTY'}`, 'warn');
+          if (ev === 'override_dispatch') showToast(`⚡ Override: ${data.unit} assigned to #${data.incident_id}`, 'ok');
+          if (ev === 'location_update') {
+            // Find the driver in local state and update it
+            const driver = state.drivers.find(d => d.unit_name === data.unit_id);
+            if (driver) {
+              driver.lat = data.lat;
+              driver.long = data.lon;
+              updateAmbulanceMarkers();
+            }
+          }
+        });
+      });
+
+      es.onerror = () => {
+        dot.classList.remove('live');
+        setTimeout(connectSSE, 4000);
+        es.close();
+      };
+    }
+
+    // ── Init ───────────────────────────────────────────────────────────────────────
+    fetchAll();
+    setInterval(fetchAll, 5000);
+    connectSSE();
+    setTimeout(() => map.invalidateSize(), 300);
+  </script>
 </body>
+
 </html>

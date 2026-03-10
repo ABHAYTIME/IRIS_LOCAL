@@ -1,10 +1,13 @@
+# pyre-ignore[21]
 import streamlit as st
 import sqlite3
+# pyre-ignore[21]
 import pandas as pd
 import os
 import time
 
 try:
+    # pyre-ignore[21]
     from streamlit_autorefresh import st_autorefresh
 except ImportError:
     st_autorefresh = None
@@ -12,13 +15,13 @@ except ImportError:
 # Connect to the SQLite DB in the driver_app folder
 DB_PATH = os.path.join(os.path.dirname(__file__), "driver_app", "crashguard.db")
 
-st.set_page_config(page_title="CrashGuard Command Center", layout="wide")
+st.set_page_config(page_title="IRIS Command Center", layout="wide")
 
 # Auto-refresh every 2 seconds
 if st_autorefresh:
     st_autorefresh(interval=2000, limit=None, key="data_refresh")
 
-st.title("🚨 CrashGuard Command Center")
+st.title("🚨 IRIS Command Center")
 
 def get_db_connection():
     conn = sqlite3.connect(DB_PATH)

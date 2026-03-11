@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>CrashGuard-S | Driver</title>
+  <title>IRIS | Driver</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <link
@@ -137,10 +137,6 @@
       letter-spacing: -0.5px;
     }
 
-    .brand-text h1 span {
-      color: var(--accent);
-    }
-
     .brand-text p {
       font-size: 0.74rem;
       color: var(--muted2);
@@ -195,24 +191,46 @@
       color: var(--muted);
     }
 
-    .btn-login {
+    .action-row {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 24px;
+    }
+
+    .btn-login,
+    .btn-register {
       width: 100%;
-      margin-top: 8px;
       padding: 16px;
-      background: linear-gradient(135deg, var(--accent), var(--accent-dk));
       border-radius: var(--radius-sm);
       font-size: 1rem;
       font-weight: 700;
+      transition: opacity 0.2s, transform 0.15s, box-shadow 0.2s;
+    }
+
+    .btn-login {
+      background: linear-gradient(135deg, var(--accent), var(--accent-dk));
       color: #fff;
       box-shadow: 0 6px 24px var(--accent-glow);
-      transition: opacity 0.2s, transform 0.15s, box-shadow 0.2s;
     }
 
     .btn-login:hover {
       box-shadow: 0 8px 32px rgba(59, 130, 246, 0.5);
     }
 
-    .btn-login:active {
+    .btn-register {
+      background: transparent;
+      border: 1.5px solid var(--border2);
+      color: var(--text);
+    }
+
+    .btn-register:hover {
+      border-color: var(--muted);
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .btn-login:active,
+    .btn-register:active {
       transform: scale(0.98);
     }
 
@@ -236,10 +254,27 @@
       font-size: 0.79rem;
       color: var(--muted2);
       line-height: 1.8;
+      text-align: center;
     }
 
-    .creds-hint strong {
+    .creds-hint a {
       color: var(--accent);
+      text-decoration: none;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    /* Registration view toggle */
+    #register-fields {
+      display: none;
+    }
+
+    .is-registering #register-fields {
+      display: block;
+    }
+
+    .is-registering .creds-hint {
+      display: none;
     }
 
     /* ════════════════ TOP BAR (shared) ════════════════ */
@@ -276,10 +311,6 @@
     .topbar-brand h2 {
       font-size: 1rem;
       font-weight: 800;
-    }
-
-    .topbar-brand h2 span {
-      color: var(--accent);
     }
 
     .driver-chip {
@@ -1052,26 +1083,44 @@
       <div class="brand">
         <div class="brand-icon">🛡️</div>
         <div class="brand-text">
-          <h1>Crash<span>Guard</span>-S</h1>
+          <h1>IRIS</h1>
           <p>Emergency Response System · Kerala</p>
         </div>
       </div>
-      <div class="login-title">Driver Sign In</div>
-      <div class="login-sub">Enter your badge ID and password to continue.</div>
-      <div class="field">
-        <label>Badge ID</label>
-        <input type="text" id="inp-badge" placeholder="e.g. DRV-01" autocomplete="off" autocapitalize="characters" />
-      </div>
-      <div class="field">
-        <label>Password</label>
-        <input type="password" id="inp-password" placeholder="Enter password" />
-      </div>
-      <button class="btn-login" id="btn-login" onclick="doLogin()">Sign In</button>
-      <div class="login-error" id="login-error"></div>
-      <div class="creds-hint">
+      <div class="login-title" id="auth-title">Driver Sign In</div>
+      <div class="login-sub" id="auth-sub">Enter your credentials to continue.</div>
+
+      <form id="login-form">
+        <div id="register-fields">
+          <div class="field">
+            <label>Full Name</label>
+            <input type="text" id="reg-name" placeholder="John Doe" autocomplete="name" />
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Phone Number</label>
+          <input type="tel" id="inp-badge" placeholder="e.g. 9876543210" required autocomplete="tel" />
+        </div>
+        <div class="field">
+          <label>Password</label>
+          <input type="password" id="inp-password" placeholder="Enter password" required />
+        </div>
+
+        <div class="login-error" id="login-error"></div>
+
+        <div class="action-row">
+          <button type="submit" class="btn-login" id="btn-login">Sign In</button>
+          <button type="button" class="btn-register" id="btn-toggle-auth" onclick="toggleAuthMode()">Create
+            Account</button>
+        </div>
+      </form>
+
+      <div class="creds-hint" id="creds-hint">
         <strong>Demo credentials:</strong><br>
-        DRV-01 / driver01 &nbsp;·&nbsp; DRV-02 / driver02<br>
-        DRV-03 / driver03 &nbsp;·&nbsp; DRV-04 / driver04
+        9876543210 / driver01 &nbsp;·&nbsp; 9876543211 / driver02<br>
+        9876543212 / driver03 &nbsp;·&nbsp; 9876543215 / alvin<br>
+        Or <a onclick="toggleAuthMode()">Register here</a>
       </div>
     </div>
   </div>
@@ -1081,7 +1130,7 @@
     <div class="topbar">
       <div class="topbar-brand">
         <div class="tb-icon">🛡️</div>
-        <h2>Crash<span>Guard</span>-S</h2>
+        <h2>IRIS</h2>
       </div>
       <div class="driver-chip" id="driver-chip">
         <div class="driver-avatar" id="driver-avatar">?</div>
@@ -1137,7 +1186,6 @@
           <div class="s-lbl">Units Online</div>
         </div>
       </div>
-      <button class="demo-btn" onclick="simulateCrash()">⚡ Simulate Crash [DEMO]</button>
     </div>
   </div>
 
@@ -1326,6 +1374,15 @@
         if (driverSpeed !== null) {
           document.getElementById('er-speed').textContent = driverSpeed;
         }
+        
+        // Push coordinate back to server
+        if (currentDriver) {
+          fetch('/api/location', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ lat: driverLat, lon: driverLon })
+          }).catch(() => {});
+        }
       }, () => {
         if (coordsEl) coordsEl.textContent = 'GPS unavailable – using base location';
       }, { enableHighAccuracy: true, maximumAge: 3000, timeout: 10000 });
@@ -1481,45 +1538,94 @@
       window.open(url, '_blank');
     }
 
-    // ── Login ─────────────────────────────────────────────────────────────
-    async function doLogin() {
-      const badge = document.getElementById('inp-badge').value.trim().toUpperCase();
+    // ── Authentication ─────────────────────────────────────────────────────────────
+    let isRegisterMode = false;
+
+    function toggleAuthMode() {
+      isRegisterMode = !isRegisterMode;
+      const card = document.querySelector('.login-card');
+      const title = document.getElementById('auth-title');
+      const sub = document.getElementById('auth-sub');
+      const btnSubmit = document.getElementById('btn-login');
+      const btnToggle = document.getElementById('btn-toggle-auth');
+
+      if (isRegisterMode) {
+        card.classList.add('is-registering');
+        title.textContent = 'Create Account';
+        sub.textContent = 'Register to join the fleet';
+        btnSubmit.textContent = 'Register Device';
+        btnToggle.textContent = 'Back to Sign In';
+        document.getElementById('reg-name').required = true;
+      } else {
+        card.classList.remove('is-registering');
+        title.textContent = 'Driver Sign In';
+        sub.textContent = 'Enter your credentials to connect';
+        btnSubmit.textContent = 'Sign In';
+        btnToggle.textContent = 'Create Account';
+        document.getElementById('reg-name').required = false;
+      }
+      document.getElementById('login-error').style.display = 'none';
+    }
+
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const phone = document.getElementById('inp-badge').value;
       const password = document.getElementById('inp-password').value;
       const btn = document.getElementById('btn-login');
-      if (!badge || !password) { showError('Please enter badge and password.'); return; }
+      if (!phone || !password) { showError('Phone and password required.'); return; }
+
       btn.innerHTML = '<span class="spinner"></span>';
       btn.disabled = true;
+
       try {
-        const res = await fetch('/api/login', {
+        let endpoint = '/api/login';
+        let payload = { phone, password };
+
+        if (isRegisterMode) {
+          endpoint = '/api/register';
+          payload.name = document.getElementById('reg-name').value;
+        }
+
+        const res = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ badge, password })
+          body: JSON.stringify(payload)
         });
+
         const data = await res.json();
-        if (!data.ok) { showError(data.error || 'Login failed'); return; }
+        if (!data.ok) {
+          showError(data.error || 'Authentication failed');
+          return;
+        }
+
         currentDriver = data.driver;
         document.getElementById('login-error').style.display = 'none';
+
+        if (isRegisterMode) {
+          toast('Registration successful! Welcome.', 4000);
+          toggleAuthMode(); // Reset view for next time
+        }
+
         enterStandby();
         connectSSE();
         checkExistingMission();
         startBackgroundGPS();
-      } catch (e) {
-        showError('Server error. Is the server running?');
+        document.getElementById('inp-password').value = '';
+
+      } catch (err) {
+        showError('Network error. Cannot reach hub.');
       } finally {
-        btn.innerHTML = 'Sign In';
+        btn.innerHTML = isRegisterMode ? 'Register Device' : 'Sign In';
         btn.disabled = false;
       }
-    }
+    });
 
     function showError(msg) {
       const el = document.getElementById('login-error');
       el.textContent = msg;
       el.style.display = 'block';
     }
-
-    document.getElementById('inp-password').addEventListener('keydown', e => {
-      if (e.key === 'Enter') doLogin();
-    });
 
     // ── Logout ────────────────────────────────────────────────────────────
     async function doLogout() {

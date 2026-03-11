@@ -1,5 +1,5 @@
 """
-CrashGuard-S — Database Initializer
+IRIS — Database Initializer
 Run once: python init_db.py
 Creates crashguard.db with the updated ER diagram schema and seeds dummy data.
 """
@@ -48,8 +48,8 @@ def init():
             name VARCHAR NOT NULL,
             role VARCHAR NOT NULL DEFAULT 'driver',
             email VARCHAR,
-            badge VARCHAR UNIQUE NOT NULL,    -- Kept for login compatibility
-            password VARCHAR NOT NULL         -- Kept for login compatibility
+            phone VARCHAR UNIQUE NOT NULL,    -- Changed from badge
+            password VARCHAR NOT NULL
         )
     """)
 
@@ -132,21 +132,23 @@ def init():
 
     # Seed Users (Drivers)
     users = [
-        ("Arjun Nair", "driver", "arjun@cg.local", "DRV-01", hash_pw("driver01")),
-        ("Priya Menon", "driver", "priya@cg.local", "DRV-02", hash_pw("driver02")),
-        ("Rahul Krishnan", "driver", "rahul@cg.local", "DRV-03", hash_pw("driver03")),
-        ("Anitha Suresh", "driver", "anitha@cg.local", "DRV-04", hash_pw("driver04")),
-        ("Vishnu Kumar", "driver", "vishnu@cg.local", "DRV-05", hash_pw("driver05"))
+        ("Arjun Nair", "driver", "arjun@cg.local", "9876543210", hash_pw("driver01")),
+        ("Priya Menon", "driver", "priya@cg.local", "9876543211", hash_pw("driver02")),
+        ("Rahul Krishnan", "driver", "rahul@cg.local", "9876543212", hash_pw("driver03")),
+        ("Anitha Suresh", "driver", "anitha@cg.local", "9876543213", hash_pw("driver04")),
+        ("Vishnu Kumar", "driver", "vishnu@cg.local", "9876543214", hash_pw("driver05")),
+        ("alvin", "driver", "alvin@cg.local", "9876543215", hash_pw("alvin"))
     ]
-    c.executemany("INSERT INTO USER (name, role, email, badge, password) VALUES (?,?,?,?,?)", users)
+    c.executemany("INSERT INTO USER (name, role, email, phone, password) VALUES (?,?,?,?,?)", users)
 
     # Seed Ambulances
     ambulances = [
-        ("Unit-01", "available", 10.5276, 76.2144),
-        ("Unit-02", "available", 10.5167, 76.2167),
-        ("Unit-03", "available", 9.9312, 76.2673),
-        ("Unit-04", "available", 10.0159, 76.3419),
-        ("Unit-05", "available", 10.4515, 76.1875)
+        ("Unit-01", "unavailable", 10.5276, 76.2144),
+        ("Unit-02", "unavailable", 10.5167, 76.2167),
+        ("Unit-03", "unavailable", 9.9312, 76.2673),
+        ("Unit-04", "unavailable", 10.0159, 76.3419),
+        ("Unit-05", "unavailable", 10.4515, 76.1875),
+        ("Unit-06", "unavailable", 10.4515, 76.1875)
     ]
     c.executemany("INSERT INTO AMBULANCE (unit_name, availability, lat, long) VALUES (?,?,?,?)", ambulances)
 
@@ -156,7 +158,8 @@ def init():
         (2, 2, 0),
         (3, 3, 0),
         (4, 4, 0),
-        (5, 5, 0)
+        (5, 5, 0),
+        (6, 6, 0)
     ]
     c.executemany("INSERT INTO DRIVER (user_id, ambulance_id, on_duty) VALUES (?,?,?)", drivers)
 
@@ -165,10 +168,10 @@ def init():
     
     print(f"[init_db] Database ready: {DB_PATH}")
     print("\nDriver Login Credentials:")
-    print("  Badge    | Password")
-    print("  ---------|-----------")
+    print("  Phone      | Password")
+    print("  -----------|-----------")
     for i, u in enumerate(users, 1):
-        print(f"  {u[3]:<8} | driver0{i}")
+        print(f"  {u[3]:<10} | driver0{i}" if i <= 5 else f"  {u[3]:<10} | alvin")
 
 if __name__ == "__main__":
     init()

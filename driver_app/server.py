@@ -1,5 +1,5 @@
 """
-CrashGuard-S — Flask Backend (server.py)
+IRIS — Flask Backend (server.py)
 Features:
   - Driver login with session management
   - Per-driver availability toggle
@@ -10,10 +10,12 @@ Features:
   - Accessible on local network (phone support)
 """
 
+# pyre-ignore[21]
 from flask import (Flask, jsonify, request, send_file,
                    Response, send_from_directory, session)
 import sqlite3, os, json, math, time, queue, threading, hashlib
 from datetime import datetime
+# pyre-ignore[21]
 import cv2
 
 # ── Config ─────────────────────────────────────────────────────────────────────
@@ -29,8 +31,19 @@ app = Flask(__name__, static_folder=BASE_DIR, static_url_path="")
 app.secret_key = SECRET_KEY
 
 # ── SSE subscribers ─────────────────────────────────────────────────────────────
-_subscribers: dict[str, list[queue.Queue]] = {}  # unit_id -> [queues]
+_subscribers = {}  # unit_id -> [queues]
 _sub_lock = threading.Lock()
+
+# ── Operator SSE subscribers ─────────────────────────────────────────────────────
+_op_subscribers = []
+_op_lock = threading.Lock()
+
+def push_operator(event_type: str, data: dict):
+    msg = f"event: {event_type}\ndata: {json.dumps(data)}\n\n"
+    with _op_lock:
+        for q in list(_op_subscribers):
+            try: q.put_nowait(msg)
+            except queue.Full: pass
 
 def push_event(unit_id: str, event_type: str, data: dict):
     msg = f"event: {event_type}\ndata: {json.dumps(data)}\n\n"
@@ -46,6 +59,8 @@ def push_all(event_type: str, data: dict):
             for q in queues:
                 try: q.put_nowait(msg)
                 except queue.Full: pass
+    # Also push to operator subscribers
+    push_operator(event_type, data)
 
 # ── DB helpers ──────────────────────────────────────────────────────────────────
 def get_db():
@@ -57,7 +72,7 @@ def hash_pw(pw):
     return hashlib.sha256(pw.encode()).hexdigest()
 
 # ── Haversine ───────────────────────────────────────────────────────────────────
-def haversine(lat1, lon1, lat2, lon2):
+def haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     R = 6371.0
     p1, p2 = math.radians(lat1), math.radians(lat2)
     dp = math.radians(lat2 - lat1)
@@ -110,7 +125,7 @@ def dispatch(incident_id, crash_lat, crash_lon, exclude_unit=None):
         "unit_id":      nearest["unit_name"],
         "crash_lat":    crash_lat,
         "crash_lon":    crash_lon,
-        "distance_km":  round(dist_km, 2),
+        "distance_km":  float(f"{dist_km:.2f}"),
         "snapshot_url": f"/api/snapshot/{incident_id}",
         "address":      get_address(crash_lat, crash_lon),
         "timestamp":    datetime.now().isoformat()
@@ -150,7 +165,7 @@ def capture_snapshot(crash_id):
             overlay = frame.copy()
             cv2.rectangle(overlay, (0, 0), (w, 70), (20, 20, 160), -1)
             cv2.addWeighted(overlay, 0.75, frame, 0.25, 0, frame)
-            cv2.putText(frame, "ACCIDENT DETECTED  |  CrashGuard-S",
+            cv2.putText(frame, "ACCIDENT DETECTED  |  IRIS",
                         (12, 42), cv2.FONT_HERSHEY_SIMPLEX, 0.85, (255,255,255), 2)
             ts = datetime.now().strftime("%d %b %Y  %H:%M:%S")
             cv2.putText(frame, ts, (12, h - 14),
@@ -165,6 +180,7 @@ def capture_snapshot(crash_id):
     except Exception as e:
         print(f"[snapshot] {e}")
     # Fallback
+    # pyre-ignore[21]
     import numpy as np
     img = np.zeros((480, 640, 3), dtype="uint8")
     img[:] = (30, 30, 160)
@@ -174,20 +190,20 @@ def capture_snapshot(crash_id):
     return snap_path
 
 # ── Auth middleware ─────────────────────────────────────────────────────────────
-def get_current_driver():
+def get_current_driver() -> dict:
     driver_id = session.get("driver_id")
     if not driver_id:
-        return None
+        return {}
     conn = get_db()
     driver = conn.execute("""
-        SELECT d.driver_id, d.on_duty, u.name, u.badge, a.ambulance_id, a.unit_name 
+        SELECT d.driver_id, d.on_duty, u.name, u.phone, a.ambulance_id, a.unit_name 
         FROM DRIVER d
         JOIN USER u ON u.user_id = d.user_id
         JOIN AMBULANCE a ON a.ambulance_id = d.ambulance_id
         WHERE d.driver_id=?
     """, (driver_id,)).fetchone()
     conn.close()
-    return driver
+    return dict(driver) if driver else {}
 
 # ══════════════════════════════════════════════════════════════════════════════
 # ROUTES
@@ -201,7 +217,7 @@ def index():
 @app.route("/api/login", methods=["POST"])
 def login():
     data = request.json or {}
-    badge = data.get("badge", "").strip().upper()
+    phone = data.get("phone", "").strip()
     password = data.get("password", "")
     conn = get_db()
     
@@ -211,13 +227,13 @@ def login():
         FROM USER u
         JOIN DRIVER d ON d.user_id = u.user_id
         JOIN AMBULANCE a ON a.ambulance_id = d.ambulance_id
-        WHERE u.badge=? AND u.password=?
-    """, (badge, hash_pw(password))).fetchone()
+        WHERE u.phone=? AND u.password=?
+    """, (phone, hash_pw(password))).fetchone()
     
     conn.close()
     
     if not user:
-        return jsonify({"ok": False, "error": "Invalid badge or password"}), 401
+        return jsonify({"ok": False, "error": "Invalid phone number or password"}), 401
         
     session["driver_id"] = user["driver_id"]
     return jsonify({
@@ -225,7 +241,7 @@ def login():
         "driver": {
             "id":        user["driver_id"],
             "name":      user["name"],
-            "badge":     user["badge"],
+            "phone":     user["phone"],
             "unit_id":   user["unit_name"],
             "amb_id":    user["ambulance_id"],
             "is_on_duty": user["on_duty"]
@@ -244,6 +260,92 @@ def logout():
     session.clear()
     return jsonify({"ok": True})
 
+@app.route("/api/register", methods=["POST"])
+def register():
+    data = request.json or {}
+    name = data.get("name", "").strip()
+    phone = data.get("phone", "").strip()
+    password = data.get("password", "")
+    
+    if not name or not phone or not password:
+        return jsonify({"ok": False, "error": "Name, phone, and password required"}), 400
+        
+    conn = get_db()
+    
+    # Check if user already exists
+    existing = conn.execute("SELECT user_id FROM USER WHERE phone=?", (phone,)).fetchone()
+    if existing:
+        conn.close()
+        return jsonify({"ok": False, "error": "Phone number already registered"}), 400
+        
+    try:
+        # 1. Create User
+        cur = conn.execute(
+            "INSERT INTO USER (name, role, phone, password) VALUES (?, ?, ?, ?)",
+            (name, 'driver', phone, hash_pw(password))
+        )
+        user_id = cur.lastrowid
+        
+        # 2. Assign to an Ambulance logic:
+        # For this prototype, we'll try to find an ambulance without a driver, 
+        # or just create a new standby one if all are taken.
+        amb_id = None
+        unassigned_amb = conn.execute("""
+            SELECT ambulance_id FROM AMBULANCE 
+            WHERE ambulance_id NOT IN (SELECT ambulance_id FROM DRIVER)
+            LIMIT 1
+        """).fetchone()
+        
+        if unassigned_amb:
+             amb_id = unassigned_amb['ambulance_id']
+        else:
+             # Create new generic ambulance unit
+             unit_count = conn.execute("SELECT COUNT(*) FROM AMBULANCE").fetchone()[0]
+             new_unit_name = f"Unit-{str(unit_count + 1).zfill(2)}"
+             # Random nearby coordinates for Thrissur generic default
+             cur_amb = conn.execute(
+                 "INSERT INTO AMBULANCE (unit_name, availability, lat, long) VALUES (?, ?, ?, ?)",
+                 (new_unit_name, "available", 10.5276, 76.2144)
+             )
+             amb_id = cur_amb.lastrowid
+             
+        # 3. Create Driver Record
+        cur_drv = conn.execute(
+            "INSERT INTO DRIVER (user_id, ambulance_id, on_duty) VALUES (?, ?, ?)",
+            (user_id, amb_id, 0)
+        )
+        driver_id = cur_drv.lastrowid
+        
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        return jsonify({"ok": False, "error": str(e)}), 500
+        
+    # Query back the full user context to match login payload exactly
+    user = conn.execute("""
+        SELECT u.*, d.driver_id, d.on_duty, a.ambulance_id, a.unit_name
+        FROM USER u
+        JOIN DRIVER d ON d.user_id = u.user_id
+        JOIN AMBULANCE a ON a.ambulance_id = d.ambulance_id
+        WHERE d.driver_id=?
+    """, (driver_id,)).fetchone()
+    
+    conn.close()
+    
+    session["driver_id"] = user["driver_id"]
+    return jsonify({
+        "ok": True,
+        "driver": {
+            "id":        user["driver_id"],
+            "name":      user["name"],
+            "phone":     user["phone"],
+            "unit_id":   user["unit_name"],
+            "amb_id":    user["ambulance_id"],
+            "is_on_duty": user["on_duty"]
+        }
+    })
+
 @app.route("/api/me")
 def me():
     driver = get_current_driver()
@@ -254,7 +356,7 @@ def me():
         "driver": {
             "id":        driver["driver_id"],
             "name":      driver["name"],
-            "badge":     driver["badge"],
+            "phone":     driver["phone"],
             "unit_id":   driver["unit_name"],
             "amb_id":    driver["ambulance_id"],
             "is_on_duty": driver["on_duty"]
@@ -283,6 +385,32 @@ def set_availability():
         "on_duty": on_duty
     })
     return jsonify({"ok": True, "on_duty": on_duty})
+
+# ── Location update ─────────────────────────────────────────────────────────────
+@app.route("/api/location", methods=["POST"])
+def update_location():
+    driver = get_current_driver()
+    if not driver:
+        return jsonify({"ok": False, "error": "Not logged in"}), 401
+    data = request.json or {}
+    lat = data.get("lat")
+    lon = data.get("lon")
+    
+    if lat is None or lon is None:
+        return jsonify({"ok": False, "error": "Missing coordinates"}), 400
+        
+    conn = get_db()
+    conn.execute("UPDATE AMBULANCE SET lat=?, long=? WHERE ambulance_id=?", (lat, lon, driver["ambulance_id"]))
+    conn.commit()
+    conn.close()
+    
+    # Push to operators so they see real-time movement
+    push_operator("location_update", {
+        "unit_id": driver["unit_name"],
+        "lat": lat,
+        "lon": lon
+    })
+    return jsonify({"ok": True})
 
 # ── SSE ─────────────────────────────────────────────────────────────────────────
 @app.route("/events")
@@ -349,8 +477,7 @@ def get_mission():
         "timestamp":    row["timestamp"],
         "snapshot_url": f"/api/snapshot/{row['incident_id']}",
         "address":      get_address(row["lat"], row["long"]),
-        "distance_km":  round(haversine(row["lat"], row["long"],
-                                        row["amb_lat"] or 0, row["amb_lon"] or 0), 2)
+        "distance_km":  float(f"{haversine(row['lat'], row['long'], row['amb_lat'] or 0, row['amb_lon'] or 0):.2f}")
     })
 
 @app.route("/api/mission/accept", methods=["POST"])
@@ -429,31 +556,6 @@ def get_snapshot(crash_id):
         return jsonify({"error": "not found"}), 404
     return send_file(snap_path, mimetype="image/jpeg")
 
-# ── Demo: simulate crash ────────────────────────────────────────────────────────
-@app.route("/api/simulate_crash", methods=["POST"])
-def simulate_crash():
-    import random
-    # Random crash near Thrissur, Kerala
-    base_lat, base_lon = 10.5276, 76.2144
-    crash_lat = base_lat + random.uniform(-0.05, 0.05)
-    crash_lon = base_lon + random.uniform(-0.05, 0.05)
-    ts = datetime.now().isoformat()
-    conn = get_db()
-    cur = conn.execute(
-        "INSERT INTO INCIDENT (timestamp, lat, long, status) VALUES (?,?,?,?)",
-        (ts, crash_lat, crash_lon, "new")
-    )
-    crash_id = cur.lastrowid
-    conn.commit()
-    conn.close()
-    capture_snapshot(crash_id)
-    assigned = dispatch(crash_id, crash_lat, crash_lon)
-    return jsonify({
-        "ok": True, "crash_id": crash_id,
-        "assigned_to": assigned,
-        "crash_lat": crash_lat, "crash_lon": crash_lon
-    })
-
 # ── Incident Submission (AI Script) ─────────────────────────────────────────────
 @app.route("/api/new_alert", methods=["POST"])
 def new_alert():
@@ -516,7 +618,7 @@ def list_ambulances():
     conn = get_db()
     rows = conn.execute("""
         SELECT a.ambulance_id as id, a.lat as latitude, a.long as longitude, a.availability as is_available,
-               u.name as driver_name, u.badge, d.on_duty as is_on_duty 
+               u.name as driver_name, u.phone, d.on_duty as is_on_duty 
         FROM AMBULANCE a 
         LEFT JOIN DRIVER d ON d.ambulance_id = a.ambulance_id
         LEFT JOIN USER u ON u.user_id = d.user_id
@@ -532,16 +634,196 @@ def list_ambulances():
         res.append(d)
     return jsonify(res)
 
+# ══════════════════════════════════════════════════════════════════════════════
+# OPERATOR ROUTES
+# ══════════════════════════════════════════════════════════════════════════════
+
+@app.route("/operator")
+def operator_dashboard():
+    return send_from_directory(BASE_DIR, "operator_dashboard.html")
+
+@app.route("/operator/events")
+def operator_sse_stream():
+    q = queue.Queue(maxsize=50)
+    with _op_lock:
+        _op_subscribers.append(q)
+
+    def generate():
+        try:
+            yield f"event: connected\ndata: {json.dumps({'role': 'operator'})}\n\n"
+            while True:
+                try:
+                    msg = q.get(timeout=25)
+                    yield msg
+                except queue.Empty:
+                    yield ": heartbeat\n\n"
+        finally:
+            with _op_lock:
+                try: _op_subscribers.remove(q)
+                except: pass
+
+    return Response(generate(), mimetype="text/event-stream",
+                    headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+@app.route("/api/operator/stats")
+def operator_stats():
+    conn = get_db()
+    total   = conn.execute("SELECT COUNT(*) FROM INCIDENT").fetchone()[0]
+    active  = conn.execute("SELECT COUNT(*) FROM INCIDENT WHERE status IN ('new','waiting_for_driver')").fetchone()[0]
+    enroute = conn.execute("SELECT COUNT(*) FROM INCIDENT WHERE status='en_route'").fetchone()[0]
+    nunit   = conn.execute("SELECT COUNT(*) FROM INCIDENT WHERE status='no_unit_available'").fetchone()[0]
+    today   = conn.execute("SELECT COUNT(*) FROM INCIDENT WHERE status='resolved' AND date(timestamp)=date('now')").fetchone()[0]
+    avail   = conn.execute("SELECT COUNT(*) FROM AMBULANCE WHERE availability='available'").fetchone()[0]
+    on_duty = conn.execute("SELECT COUNT(*) FROM DRIVER WHERE on_duty=1").fetchone()[0]
+    conn.close()
+    return jsonify({
+        "total": total, "active": active, "en_route": enroute,
+        "no_unit": nunit, "resolved_today": today,
+        "available_units": avail, "on_duty_drivers": on_duty
+    })
+
+@app.route("/api/operator/incidents")
+def operator_incidents():
+    conn = get_db()
+    rows = conn.execute("""
+        SELECT i.incident_id, i.lat, i.long, i.status, i.timestamp, i.camera_id,
+               d.status as disp_status, d.dispatch_id,
+               a.unit_name, a.ambulance_id,
+               u.name as driver_name, u.phone,
+               e.snapshot_path
+        FROM INCIDENT i
+        LEFT JOIN DISPATCH d ON d.incident_id = i.incident_id
+            AND d.status NOT IN ('declined')
+        LEFT JOIN AMBULANCE a ON a.ambulance_id = d.ambulance_id
+        LEFT JOIN DRIVER dr ON dr.driver_id = d.driver_id
+        LEFT JOIN USER u ON u.user_id = dr.user_id
+        LEFT JOIN EVIDENCE e ON e.incident_id = i.incident_id
+        ORDER BY i.incident_id DESC LIMIT 50
+    """).fetchall()
+    conn.close()
+    result = []
+    seen = set()
+    for r in rows:
+        iid = r["incident_id"]
+        if iid in seen:
+            continue
+        seen.add(iid)
+        d = dict(r)
+        d["address"] = get_address(r["lat"], r["long"])
+        result.append(d)
+    return jsonify(result)
+
+@app.route("/api/operator/drivers")
+def operator_drivers():
+    conn = get_db()
+    rows = conn.execute("""
+        SELECT d.driver_id, d.on_duty, d.ambulance_id,
+               u.name, u.phone, u.email,
+               a.unit_name, a.availability, a.lat, a.long
+        FROM DRIVER d
+        JOIN USER u ON u.user_id = d.user_id
+        JOIN AMBULANCE a ON a.ambulance_id = d.ambulance_id
+        ORDER BY a.unit_name
+    """).fetchall()
+    conn.close()
+    return jsonify([dict(r) for r in rows])
+
+@app.route("/api/operator/override", methods=["POST"])
+def operator_override():
+    """Force-assign a specific ambulance to a failed/pending incident."""
+    data = request.json or {}
+    incident_id  = data.get("incident_id")
+    ambulance_id = data.get("ambulance_id")
+    if not incident_id or not ambulance_id:
+        return jsonify({"ok": False, "error": "Missing incident_id or ambulance_id"}), 400
+
+    conn = get_db()
+    inc = conn.execute("SELECT * FROM INCIDENT WHERE incident_id=?", (incident_id,)).fetchone()
+    amb = conn.execute(
+        "SELECT a.*, d.driver_id FROM AMBULANCE a JOIN DRIVER d ON d.ambulance_id=a.ambulance_id WHERE a.ambulance_id=?",
+        (ambulance_id,)).fetchone()
+
+    if not inc or not amb:
+        conn.close()
+        return jsonify({"ok": False, "error": "Incident or ambulance not found"}), 404
+
+    # Cancel any pending dispatches for this incident
+    conn.execute("UPDATE DISPATCH SET status='cancelled' WHERE incident_id=? AND status IN ('dispatched','en_route')", (incident_id,))
+
+    # Create new override dispatch
+    conn.execute(
+        "INSERT INTO DISPATCH (incident_id, ambulance_id, driver_id, status) VALUES (?,?,?,'dispatched')",
+        (incident_id, ambulance_id, amb["driver_id"])
+    )
+    conn.execute("UPDATE INCIDENT SET status='waiting_for_driver' WHERE incident_id=?", (incident_id,))
+    conn.execute("UPDATE AMBULANCE SET availability='unavailable' WHERE ambulance_id=?", (ambulance_id,))
+    conn.commit()
+    conn.close()
+
+    push_operator("override_dispatch", {
+        "incident_id": incident_id,
+        "unit": amb["unit_name"],
+        "operator_action": True
+    })
+    push_event(str(ambulance_id), "mission_assigned", {
+        "crash_id":    incident_id,
+        "unit_id":     amb["unit_name"],
+        "crash_lat":   inc["lat"],
+        "crash_lon":   inc["long"],
+        "distance_km": float(f"{haversine(inc['lat'], inc['long'], amb['lat'], amb['long']):.2f}"),
+        "snapshot_url": f"/api/snapshot/{incident_id}",
+        "address":     get_address(inc["lat"], inc["long"]),
+        "timestamp":   datetime.now().isoformat(),
+        "operator_override": True
+    })
+    return jsonify({"ok": True, "unit": amb["unit_name"]})
+
+@app.route("/api/operator/cancel_dispatch", methods=["POST"])
+def operator_cancel_dispatch():
+    data = request.json or {}
+    incident_id = data.get("incident_id")
+    conn = get_db()
+    conn.execute("UPDATE DISPATCH SET status='cancelled' WHERE incident_id=? AND status IN ('dispatched','en_route')", (incident_id,))
+    conn.execute("UPDATE INCIDENT SET status='new' WHERE incident_id=?", (incident_id,))
+    # Re-check ambulance availability from remaining active dispatches
+    conn.commit()
+    conn.close()
+    push_operator("dispatch_cancelled", {"incident_id": incident_id})
+    return jsonify({"ok": True})
+
+@app.route("/api/operator/update_status", methods=["POST"])
+def operator_update_status():
+    data = request.json or {}
+    incident_id = data.get("incident_id")
+    status      = data.get("status")
+    allowed = ['new','waiting_for_driver','en_route','resolved','no_unit_available']
+    if status not in allowed:
+        return jsonify({"ok": False, "error": "Invalid status"}), 400
+    conn = get_db()
+    conn.execute("UPDATE INCIDENT SET status=? WHERE incident_id=?", (status, incident_id))
+    if status == 'resolved':
+        # Free up the ambulance
+        disp = conn.execute("SELECT ambulance_id FROM DISPATCH WHERE incident_id=? ORDER BY dispatch_id DESC LIMIT 1", (incident_id,)).fetchone()
+        if disp:
+            conn.execute("UPDATE AMBULANCE SET availability='available' WHERE ambulance_id=?", (disp["ambulance_id"],))
+            conn.execute("UPDATE DISPATCH SET status='arrived' WHERE incident_id=? AND status IN ('dispatched','en_route')", (incident_id,))
+    conn.commit()
+    conn.close()
+    push_all("status_update", {"crash_id": incident_id, "status": status})
+    return jsonify({"ok": True})
+
 # ── Main ────────────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
+    # pyre-ignore[21]
     from init_db import init
     init()
     import socket
     hostname = socket.gethostname()
     local_ip = socket.gethostbyname(hostname)
     print("\n" + "="*60)
-    print("  CrashGuard-S Driver App")
-    print(f"  Local:   http://localhost:5000")
-    print(f"  Network: http://{local_ip}:5000  <-- open this on your phone")
+    print("  IRIS")
+    print(f"  Driver App:        http://localhost:5000")
+    print(f"  Operator Dashboard: http://localhost:5000/operator")
+    print(f"  Network:           http://{local_ip}:5000")
     print("="*60 + "\n")
     app.run(host="0.0.0.0", debug=False, threaded=True, port=5000)

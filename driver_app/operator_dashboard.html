@@ -1104,10 +1104,26 @@
         <strong id="oa-incident-label">Incident #—</strong>
         <span id="oa-address">No unit was available for auto-dispatch.</span>
       </div>
-      <select class="oa-select" id="oa-unit-select">
-        <option value="">Select Unit</option>
-      </select>
-      <button class="btn-override" onclick="doOverride()">⚡ Force Assign</button>
+
+      <!-- Normal Unit Selection -->
+      <div id="oa-select-container" style="display:flex; flex:1; gap:12px;">
+        <select class="oa-select" id="oa-unit-select">
+          <option value="">Select Unit</option>
+        </select>
+        <button class="btn-override" onclick="doOverride()">⚡ Force Assign</button>
+      </div>
+
+      <!-- Countdown UI -->
+      <div id="oa-countdown-container" style="display:none; flex:1; align-items:center; gap:12px;">
+        <div style="flex:1; color:var(--amber); font-weight:700; font-size:0.9rem;">
+          Waiting for response... <span id="oa-timer-value"
+            style="color:var(--text); font-size:1.1rem; margin-left:8px;">20s</span>
+        </div>
+        <button class="btn-modal btn-cancel-disp"
+          style="background:#2a1200;border-color:var(--orange);color:var(--orange);"
+          onclick="cancelOverrideCountdown()">Cancel</button>
+      </div>
+
     </div>
   </div>
 
@@ -1165,6 +1181,8 @@
       stats: {},
       overrideIncidentId: null,
       modalIncidentId: null,
+      overrideInterval: null,
+      overrideTimeLeft: 0
     };
 
     // ── Clock ──────────────────────────────────────────────────────────────────────
@@ -1219,7 +1237,7 @@
     function setView(v) {
       document.querySelectorAll('.sb-btn').forEach(b => b.classList.remove('active'));
       document.getElementById('nav-' + v)?.classList.add('active');
-      
+
       const mapPanel = document.getElementById('map-panel');
       const rightPanel = document.getElementById('right-panel');
       const incidentFeed = document.getElementById('incident-feed');
@@ -1245,7 +1263,7 @@
         fleetPanel.style.display = 'flex';
         content.style.gridTemplateColumns = '1fr';
       }
-      
+
       if (v === 'overview') {
         setTimeout(() => map.invalidateSize(), 150);
       }
@@ -1314,18 +1332,18 @@
         el.innerHTML = '<div style="padding:24px;text-align:center;color:var(--muted);font-size:0.8rem;">No incidents yet</div>';
         return;
       }
-      
+
       const closureMap = {
-        'transported': 'Patient Transported',
-        'false_alarm': 'False Alarm',
-        'others': 'Transported by Others'
+        'transported': 'Patient Secured',
+        'false_alarm': 'Stood Down',
+        'others': 'Resolved on Scene'
       };
 
       el.innerHTML = state.incidents.map(i => {
         const isActive = ['new', 'waiting_for_driver', 'no_unit_available'].includes(i.status);
-        const closureText = i.status === 'resolved' && i.closure_reason 
-                              ? `<span style="color:var(--green);font-weight:600;font-size:0.85rem;margin-left:auto;">[${closureMap[i.closure_reason] || i.closure_reason}]</span>` 
-                              : '';
+        const closureText = i.status === 'resolved' && i.closure_reason
+          ? `<span style="color:var(--green);font-weight:600;font-size:0.85rem;margin-left:auto;">[${closureMap[i.closure_reason] || i.closure_reason}]</span>`
+          : '';
         return `<div class="inc-card ${isActive && i.status !== 'resolved' ? 'pulse-border' : ''}" onclick='openModal(${i.incident_id})'>
       <div class="inc-row1">
         <span class="inc-id">#${i.incident_id}</span>
@@ -1461,7 +1479,41 @@
     }
 
     function closeOverride() {
+      if (state.overrideInterval) {
+        clearInterval(state.overrideInterval);
+        state.overrideInterval = null;
+      }
       document.getElementById('override-alert').classList.remove('visible');
+      resetOverrideUI();
+    }
+
+    function resetOverrideUI() {
+      document.getElementById('oa-select-container').style.display = 'flex';
+      document.getElementById('oa-countdown-container').style.display = 'none';
+      if (state.overrideInterval) {
+        clearInterval(state.overrideInterval);
+        state.overrideInterval = null;
+      }
+    }
+
+    async function cancelOverrideCountdown() {
+      if (!state.overrideIncidentId) return;
+
+      // Stop timer
+      resetOverrideUI();
+
+      // Tell server to cancel it
+      const r = await fetch('/api/operator/cancel_dispatch', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ incident_id: state.overrideIncidentId })
+      });
+      const d = await r.json();
+
+      if (d.ok) {
+        showToast('🔁 Override cancelled, please re-assign.', 'warn');
+        // Let them pick again immediately
+        fetchAll();
+      }
     }
 
     async function doOverride() {
@@ -1474,10 +1526,42 @@
       const d = await r.json();
       if (d.ok) {
         showToast(`✅ ${d.unit} dispatched to incident #${state.overrideIncidentId}`, 'ok');
-        closeOverride();
+
+        // Start 20-second countdown
+        document.getElementById('oa-select-container').style.display = 'none';
+        document.getElementById('oa-countdown-container').style.display = 'flex';
+        state.overrideTimeLeft = 20;
+        document.getElementById('oa-timer-value').textContent = state.overrideTimeLeft + 's';
+
+        if (state.overrideInterval) clearInterval(state.overrideInterval);
+
+        state.overrideInterval = setInterval(async () => {
+          state.overrideTimeLeft--;
+          document.getElementById('oa-timer-value').textContent = state.overrideTimeLeft + 's';
+
+          if (state.overrideTimeLeft <= 0) {
+            clearInterval(state.overrideInterval);
+            state.overrideInterval = null;
+
+            // Auto cancel if they haven't responded
+            showToast(`⏳ Driver did not respond. Cancelling assignment for #${state.overrideIncidentId}.`, 'err');
+
+            // Issue cancel request
+            fetch('/api/operator/cancel_dispatch', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ incident_id: state.overrideIncidentId })
+            }).then(() => {
+              // Re-check no unit logic / reset ui
+              resetOverrideUI();
+              fetchAll();
+            });
+          }
+        }, 1000);
+
         fetchAll();
       } else {
         showToast('Override failed: ' + (d.error || 'Unknown error'), 'err');
+        resetOverrideUI();
       }
     }
 
@@ -1502,12 +1586,12 @@
 
       // Timeline
       const closureMap = {
-        'transported': 'Patient Transported',
-        'false_alarm': 'No Patient / False Alarm',
-        'others': 'Transported by Others'
+        'transported': 'Patient Secured',
+        'false_alarm': 'Stood Down',
+        'others': 'Resolved on Scene'
       };
       const closureStr = i.closure_reason ? ` - ${closureMap[i.closure_reason] || i.closure_reason}` : '';
-      
+
       const tl = document.getElementById('md-timeline');
       tl.innerHTML = `<div class="tl-item"><div class="tl-dot" style="background:var(--red)"></div><div class="tl-text"><strong>Crash detected</strong> – ${new Date(i.timestamp || Date.now()).toLocaleString('en-IN')}</div></div>` +
         (i.unit_name ? `<div class="tl-item"><div class="tl-dot"></div><div class="tl-text"><strong>${i.unit_name}</strong> dispatched (${i.driver_name || 'driver'})</div></div>` : '') +
@@ -1554,10 +1638,22 @@
         es.addEventListener(ev, e => {
           if (ev !== 'location_update') fetchAll();
           const data = JSON.parse(e.data);
-          
+
           if (ev === 'mission_assigned') showToast(`🚑 ${data.unit_id || 'Unit'} dispatched to crash #${data.crash_id}`, 'ok');
           if (ev === 'availability_update') showToast(`${data.driver} is now ${data.on_duty ? 'ON DUTY' : 'OFF DUTY'}`, 'warn');
           if (ev === 'override_dispatch') showToast(`⚡ Override: ${data.unit} assigned to #${data.incident_id}`, 'ok');
+          if (ev === 'dispatch_cancelled') {
+            // If we're waiting for this specific override, UI will be reset
+            if (state.overrideIncidentId == data.incident_id) {
+              resetOverrideUI();
+            }
+          }
+          if (ev === 'status_update') {
+            // If driver accepts (en_route) or resolves the crash we were overriding, close prompt
+            if (data.crash_id == state.overrideIncidentId && (data.status === 'en_route' || data.status === 'resolved')) {
+              closeOverride();
+            }
+          }
           if (ev === 'location_update') {
             // Find the driver in local state and update it
             const driver = state.drivers.find(d => d.unit_name === data.unit_id);

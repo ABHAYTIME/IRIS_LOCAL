@@ -1196,7 +1196,8 @@
       <h2>CRASH DETECTED — MISSION ASSIGNED</h2>
       <span class="at-time" id="alert-ts">—</span>
     </div>
-    <div id="alert-timer-display" style="text-align: center; font-size: 1.5rem; font-weight: 800; color: var(--red); padding: 12px; background: rgba(239, 68, 68, 0.1); border-bottom: 1px solid rgba(239, 68, 68, 0.2);">
+    <div id="alert-timer-display"
+      style="text-align: center; font-size: 1.5rem; font-weight: 800; color: var(--red); padding: 12px; background: rgba(239, 68, 68, 0.1); border-bottom: 1px solid rgba(239, 68, 68, 0.2);">
       AUTO-DECLINING IN <span id="alert-countdown-val">30</span>s
     </div>
     <div class="alert-scroll">
@@ -1291,14 +1292,21 @@
     <div class="standby-body" style="justify-content: flex-start; padding-top: 60px;">
       <div class="standby-title" style="margin-bottom: 24px;">Confirm Outcome</div>
       <div class="standby-sub" style="margin-bottom: 32px;">Please select the resolution for this prompt:</div>
-      
+
       <div class="action-row" style="width: 100%; max-width: 390px; gap: 16px;">
-        <button class="btn-login" style="background: linear-gradient(135deg, var(--green), var(--green-dk)); box-shadow: 0 6px 24px var(--green-glow);" onclick="submitClosure('transported')">🏥 Patient Transported</button>
-        <button class="btn-login" style="background: linear-gradient(135deg, var(--amber), #b45309); box-shadow: 0 6px 24px rgba(245, 158, 11, 0.4);" onclick="submitClosure('false_alarm')">❌ No Patient / False Alarm</button>
-        <button class="btn-login" style="background: linear-gradient(135deg, var(--purple), #5b21b6); box-shadow: 0 6px 24px rgba(139, 92, 246, 0.4);" onclick="submitClosure('others')">🚗 Transported By Others</button>
+        <button class="btn-login"
+          style="background: linear-gradient(135deg, var(--green), var(--green-dk)); box-shadow: 0 6px 24px var(--green-glow);"
+          onclick="submitClosure('transported')">🏥 Patient Secured</button>
+        <button class="btn-login"
+          style="background: linear-gradient(135deg, var(--amber), #b45309); box-shadow: 0 6px 24px rgba(245, 158, 11, 0.4);"
+          onclick="submitClosure('false_alarm')">❌ Stood Down</button>
+        <button class="btn-login"
+          style="background: linear-gradient(135deg, var(--purple), #5b21b6); box-shadow: 0 6px 24px rgba(139, 92, 246, 0.4);"
+          onclick="submitClosure('others')">🚗 Resolved on Scene</button>
       </div>
-      
-      <button class="demo-btn" style="margin-top: 40px;" onclick="showScreen('screen-enroute')">🔙 Back to En Route</button>
+
+      <button class="demo-btn" style="margin-top: 40px;" onclick="showScreen('screen-enroute')">🔙 Back to En
+        Route</button>
     </div>
   </div>
 
@@ -1316,7 +1324,7 @@
     let driverLat = null, driverLon = null, driverSpeed = null;
     let routeRefreshTimer = null;
     let gpsWatchId = null;
-    
+
     let alertCountdownInterval = null;
     let alertCountdownValue = 0;
 
@@ -1396,14 +1404,14 @@
         if (driverSpeed !== null) {
           document.getElementById('er-speed').textContent = driverSpeed;
         }
-        
+
         // Push coordinate back to server
         if (currentDriver) {
           fetch('/api/location', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ lat: driverLat, lon: driverLon })
-          }).catch(() => {});
+          }).catch(() => { });
         }
       }, () => {
         if (coordsEl) coordsEl.textContent = 'GPS unavailable – using base location';
@@ -1551,12 +1559,9 @@
     function openInMaps() {
       if (!currentMission) return;
       const toLat = currentMission.crash_lat, toLon = currentMission.crash_lon;
-      let url;
-      if (driverLat && driverLon) {
-        url = `https://www.google.com/maps/dir/${driverLat},${driverLon}/${toLat},${toLon}`;
-      } else {
-        url = `https://www.google.com/maps/dir//${toLat},${toLon}`;
-      }
+      const fromLat = driverLat || 10.5276;
+      const fromLon = driverLon || 76.2144;
+      const url = `https://www.google.com/maps/dir/${fromLat},${fromLon}/${toLat},${toLon}`;
       window.open(url, '_blank');
     }
 
@@ -1730,7 +1735,7 @@
       snap.src = data.snapshot_url + '?t=' + Date.now();
       showScreen('screen-alert');
       startAlarm();
-      
+
       // Start 30-second countdown
       alertCountdownValue = 30;
       document.getElementById('alert-countdown-val').textContent = alertCountdownValue;
@@ -1796,7 +1801,7 @@
     async function markArrived() {
       showScreen('screen-closure');
     }
-    
+
     async function submitClosure(reason) {
       if (!currentMission) return;
       await fetch('/api/mission/arrived', {
@@ -1852,5 +1857,4 @@
     }
   </script>
 </body>
-
-</html>
+

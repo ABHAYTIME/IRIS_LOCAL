@@ -1454,6 +1454,9 @@
 
     // ── Override Logic ─────────────────────────────────────────────────────────────
     function checkNoUnit() {
+      // If we are currently overriding, don't interrupt with a new check
+      if (state.overrideIncidentId && document.getElementById('override-alert').classList.contains('visible')) return;
+
       const failed = state.incidents.find(i => i.status === 'no_unit_available');
       if (failed) {
         triggerOverride(failed.incident_id, failed.address);
@@ -1485,6 +1488,7 @@
       }
       document.getElementById('override-alert').classList.remove('visible');
       resetOverrideUI();
+      state.overrideIncidentId = null;
     }
 
     function resetOverrideUI() {
@@ -1499,19 +1503,19 @@
     async function cancelOverrideCountdown() {
       if (!state.overrideIncidentId) return;
 
-      // Stop timer
-      resetOverrideUI();
+      const incId = state.overrideIncidentId;
+      // Stop timer and hide UI
+      closeOverride();
 
       // Tell server to cancel it
       const r = await fetch('/api/operator/cancel_dispatch', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ incident_id: state.overrideIncidentId })
+        body: JSON.stringify({ incident_id: incId })
       });
       const d = await r.json();
 
       if (d.ok) {
-        showToast('🔁 Override cancelled, please re-assign.', 'warn');
-        // Let them pick again immediately
+        showToast('🔁 Override cancelled, returning to queue.', 'warn');
         fetchAll();
       }
     }
@@ -1527,10 +1531,10 @@
       if (d.ok) {
         showToast(`✅ ${d.unit} dispatched to incident #${state.overrideIncidentId}`, 'ok');
 
-        // Start 20-second countdown
+        // Start 15-second countdown
         document.getElementById('oa-select-container').style.display = 'none';
         document.getElementById('oa-countdown-container').style.display = 'flex';
-        state.overrideTimeLeft = 20;
+        state.overrideTimeLeft = 15;
         document.getElementById('oa-timer-value').textContent = state.overrideTimeLeft + 's';
 
         if (state.overrideInterval) clearInterval(state.overrideInterval);
@@ -1543,16 +1547,15 @@
             clearInterval(state.overrideInterval);
             state.overrideInterval = null;
 
-            // Auto cancel if they haven't responded
-            showToast(`⏳ Driver did not respond. Cancelling assignment for #${state.overrideIncidentId}.`, 'err');
+            const incId = state.overrideIncidentId;
+            showToast(`⏳ Driver did not respond. Cancelling assignment for #${incId}.`, 'err');
+            closeOverride();
 
             // Issue cancel request
             fetch('/api/operator/cancel_dispatch', {
               method: 'POST', headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ incident_id: state.overrideIncidentId })
+              body: JSON.stringify({ incident_id: incId })
             }).then(() => {
-              // Re-check no unit logic / reset ui
-              resetOverrideUI();
               fetchAll();
             });
           }
@@ -1639,7 +1642,12 @@
           if (ev !== 'location_update') fetchAll();
           const data = JSON.parse(e.data);
 
-          if (ev === 'mission_assigned') showToast(`🚑 ${data.unit_id || 'Unit'} dispatched to crash #${data.crash_id}`, 'ok');
+          if (ev === 'mission_assigned') {
+            showToast(`🚑 ${data.unit_id || 'Unit'} dispatched to crash #${data.crash_id}`, 'ok');
+            if (state.overrideIncidentId == data.crash_id) {
+              closeOverride();
+            }
+          }
           if (ev === 'availability_update') showToast(`${data.driver} is now ${data.on_duty ? 'ON DUTY' : 'OFF DUTY'}`, 'warn');
           if (ev === 'override_dispatch') showToast(`⚡ Override: ${data.unit} assigned to #${data.incident_id}`, 'ok');
           if (ev === 'dispatch_cancelled') {
@@ -1650,7 +1658,8 @@
           }
           if (ev === 'status_update') {
             // If driver accepts (en_route) or resolves the crash we were overriding, close prompt
-            if (data.crash_id == state.overrideIncidentId && (data.status === 'en_route' || data.status === 'resolved')) {
+            // Also close if it somehow goes back to waiting_for_driver (e.g. auto assignment)
+            if (data.crash_id == state.overrideIncidentId && (data.status === 'en_route' || data.status === 'resolved' || data.status === 'waiting_for_driver')) {
               closeOverride();
             }
           }

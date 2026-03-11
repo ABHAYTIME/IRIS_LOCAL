@@ -377,6 +377,20 @@ def set_availability():
     conn.execute("UPDATE DRIVER SET on_duty=? WHERE driver_id=?", (on_duty, driver["driver_id"]))
     conn.execute("UPDATE AMBULANCE SET availability=? WHERE ambulance_id=?", (avail_str, driver["ambulance_id"]))
     conn.commit()
+    
+    # Check if there's a pending unassigned incident or an override targeting an off-duty driver
+    dispatched_incident = None
+    if on_duty:
+        dispatched_incident = conn.execute("""
+            SELECT i.incident_id, i.lat, i.long 
+            FROM INCIDENT i
+            LEFT JOIN DISPATCH dp ON dp.incident_id = i.incident_id AND dp.status = 'dispatched'
+            LEFT JOIN DRIVER target_d ON target_d.driver_id = dp.driver_id
+            WHERE i.status='no_unit_available' 
+               OR (i.status='waiting_for_driver' AND target_d.on_duty=0)
+            ORDER BY i.timestamp ASC LIMIT 1
+        """).fetchone()
+        
     conn.close()
     
     push_all("availability_update", {
@@ -384,6 +398,24 @@ def set_availability():
         "driver":  driver["name"],
         "on_duty": on_duty
     })
+    
+    # If a valid incident was waiting or being overridden, cancel the old and auto-assign
+    if dispatched_incident and on_duty:
+        inc_id = dispatched_incident["incident_id"]
+        # Cancel any active dispatch traces (if we stole an override)
+        conn2 = get_db()
+        conn2.execute("UPDATE DISPATCH SET status='cancelled' WHERE incident_id=? AND status='dispatched'", (inc_id,))
+        # Temporarily revert incident status so dispatch() correctly processes it
+        conn2.execute("UPDATE INCIDENT SET status='new' WHERE incident_id=?", (inc_id,))
+        conn2.commit()
+        conn2.close()
+        
+        # Notify operator dashboard to close its popup just in case
+        push_operator("dispatch_cancelled", {"incident_id": inc_id})
+        
+        # Finally re-route it using distance calculation
+        dispatch(inc_id, dispatched_incident["lat"], dispatched_incident["long"])
+        
     return jsonify({"ok": True, "on_duty": on_duty})
 
 # ── Location update ─────────────────────────────────────────────────────────────
@@ -787,9 +819,18 @@ def operator_cancel_dispatch():
     data = request.json or {}
     incident_id = data.get("incident_id")
     conn = get_db()
+    
+    # 1. Clear any active dispatches
     conn.execute("UPDATE DISPATCH SET status='cancelled' WHERE incident_id=? AND status IN ('dispatched','en_route')", (incident_id,))
-    conn.execute("UPDATE INCIDENT SET status='new' WHERE incident_id=?", (incident_id,))
-    # Re-check ambulance availability from remaining active dispatches
+    
+    # 2. Re-evaluate unit availability. If no units are available, this goes back to no_unit_available
+    avail_count = conn.execute("SELECT COUNT(*) FROM AMBULANCE a JOIN DRIVER d ON d.ambulance_id = a.ambulance_id WHERE a.availability='available' AND d.on_duty=1").fetchone()[0]
+    
+    if avail_count == 0:
+        conn.execute("UPDATE INCIDENT SET status='no_unit_available' WHERE incident_id=?", (incident_id,))
+    else:
+        conn.execute("UPDATE INCIDENT SET status='new' WHERE incident_id=?", (incident_id,))
+        
     conn.commit()
     conn.close()
     push_operator("dispatch_cancelled", {"incident_id": incident_id})

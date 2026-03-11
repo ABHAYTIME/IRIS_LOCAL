@@ -1314,8 +1314,18 @@
         el.innerHTML = '<div style="padding:24px;text-align:center;color:var(--muted);font-size:0.8rem;">No incidents yet</div>';
         return;
       }
+      
+      const closureMap = {
+        'transported': 'Patient Transported',
+        'false_alarm': 'False Alarm',
+        'others': 'Transported by Others'
+      };
+
       el.innerHTML = state.incidents.map(i => {
         const isActive = ['new', 'waiting_for_driver', 'no_unit_available'].includes(i.status);
+        const closureText = i.status === 'resolved' && i.closure_reason 
+                              ? `<span style="color:var(--green);font-weight:600;font-size:0.85rem;margin-left:auto;">[${closureMap[i.closure_reason] || i.closure_reason}]</span>` 
+                              : '';
         return `<div class="inc-card ${isActive && i.status !== 'resolved' ? 'pulse-border' : ''}" onclick='openModal(${i.incident_id})'>
       <div class="inc-row1">
         <span class="inc-id">#${i.incident_id}</span>
@@ -1323,10 +1333,11 @@
         <span class="inc-time">${fmtTime(i.timestamp)}</span>
       </div>
       <div class="inc-row2">📍 ${i.address || `${Number(i.lat).toFixed(4)}, ${Number(i.long).toFixed(4)}`}</div>
-      <div class="inc-row3">
+      <div class="inc-row3" style="display:flex;align-items:center;">
         ${i.unit_name ? `<span class="inc-unit-chip">🚑 ${i.unit_name}</span>` : ''}
-        ${i.driver_name ? `<span>${i.driver_name}</span>` : ''}
-        ${i.status === 'no_unit_available' ? '<span style="color:var(--orange);font-weight:700">⚠️ Override needed</span>' : ''}
+        ${i.driver_name ? `<span style="margin-left:6px">${i.driver_name}</span>` : ''}
+        ${i.status === 'no_unit_available' ? '<span style="color:var(--orange);font-weight:700;margin-left:6px">⚠️ Override needed</span>' : ''}
+        ${closureText}
       </div>
     </div>`;
       }).join('');
@@ -1490,11 +1501,18 @@
       snap.onload = () => { snap.style.display = 'block'; };
 
       // Timeline
+      const closureMap = {
+        'transported': 'Patient Transported',
+        'false_alarm': 'No Patient / False Alarm',
+        'others': 'Transported by Others'
+      };
+      const closureStr = i.closure_reason ? ` - ${closureMap[i.closure_reason] || i.closure_reason}` : '';
+      
       const tl = document.getElementById('md-timeline');
       tl.innerHTML = `<div class="tl-item"><div class="tl-dot" style="background:var(--red)"></div><div class="tl-text"><strong>Crash detected</strong> – ${new Date(i.timestamp || Date.now()).toLocaleString('en-IN')}</div></div>` +
         (i.unit_name ? `<div class="tl-item"><div class="tl-dot"></div><div class="tl-text"><strong>${i.unit_name}</strong> dispatched (${i.driver_name || 'driver'})</div></div>` : '') +
         (i.disp_status === 'en_route' ? `<div class="tl-item"><div class="tl-dot" style="background:var(--amber)"></div><div class="tl-text"><strong>En route</strong> to scene</div></div>` : '') +
-        (i.status === 'resolved' ? `<div class="tl-item"><div class="tl-dot" style="background:var(--green)"></div><div class="tl-text"><strong>Resolved</strong></div></div>` : '');
+        (i.status === 'resolved' ? `<div class="tl-item"><div class="tl-dot" style="background:var(--green)"></div><div class="tl-text"><strong>Resolved</strong>${closureStr}</div></div>` : '');
 
       document.getElementById('btn-resolve').disabled = i.status === 'resolved';
       document.getElementById('modal-overlay').classList.add('open');

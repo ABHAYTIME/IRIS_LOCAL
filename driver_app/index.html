@@ -1196,6 +1196,9 @@
       <h2>CRASH DETECTED — MISSION ASSIGNED</h2>
       <span class="at-time" id="alert-ts">—</span>
     </div>
+    <div id="alert-timer-display" style="text-align: center; font-size: 1.5rem; font-weight: 800; color: var(--red); padding: 12px; background: rgba(239, 68, 68, 0.1); border-bottom: 1px solid rgba(239, 68, 68, 0.2);">
+      AUTO-DECLINING IN <span id="alert-countdown-val">30</span>s
+    </div>
     <div class="alert-scroll">
       <div class="a-card">
         <div class="a-card-head">📷 Accident Snapshot</div>
@@ -1277,9 +1280,25 @@
         <span id="turn-text">—</span>
       </div>
       <div class="er-actions">
-        <button class="btn-arrived" onclick="markArrived()">🏁 Mark as Arrived</button>
+        <button class="btn-arrived" onclick="showScreen('screen-closure')">🏁 Mark as Arrived</button>
         <button class="btn-maps" id="btn-maps" onclick="openInMaps()">🗺️ Maps</button>
       </div>
+    </div>
+  </div>
+
+  <!-- ════════════ CLOSURE OPTIONS ════════════ -->
+  <div class="screen" id="screen-closure">
+    <div class="standby-body" style="justify-content: flex-start; padding-top: 60px;">
+      <div class="standby-title" style="margin-bottom: 24px;">Confirm Outcome</div>
+      <div class="standby-sub" style="margin-bottom: 32px;">Please select the resolution for this prompt:</div>
+      
+      <div class="action-row" style="width: 100%; max-width: 390px; gap: 16px;">
+        <button class="btn-login" style="background: linear-gradient(135deg, var(--green), var(--green-dk)); box-shadow: 0 6px 24px var(--green-glow);" onclick="submitClosure('transported')">🏥 Patient Transported</button>
+        <button class="btn-login" style="background: linear-gradient(135deg, var(--amber), #b45309); box-shadow: 0 6px 24px rgba(245, 158, 11, 0.4);" onclick="submitClosure('false_alarm')">❌ No Patient / False Alarm</button>
+        <button class="btn-login" style="background: linear-gradient(135deg, var(--purple), #5b21b6); box-shadow: 0 6px 24px rgba(139, 92, 246, 0.4);" onclick="submitClosure('others')">🚗 Transported By Others</button>
+      </div>
+      
+      <button class="demo-btn" style="margin-top: 40px;" onclick="showScreen('screen-enroute')">🔙 Back to En Route</button>
     </div>
   </div>
 
@@ -1297,6 +1316,9 @@
     let driverLat = null, driverLon = null, driverSpeed = null;
     let routeRefreshTimer = null;
     let gpsWatchId = null;
+    
+    let alertCountdownInterval = null;
+    let alertCountdownValue = 0;
 
     // ── Utilities ──────────────────────────────────────────────────────────
     function showScreen(id) {
@@ -1708,6 +1730,20 @@
       snap.src = data.snapshot_url + '?t=' + Date.now();
       showScreen('screen-alert');
       startAlarm();
+      
+      // Start 30-second countdown
+      alertCountdownValue = 30;
+      document.getElementById('alert-countdown-val').textContent = alertCountdownValue;
+      if (alertCountdownInterval) clearInterval(alertCountdownInterval);
+      alertCountdownInterval = setInterval(() => {
+        alertCountdownValue--;
+        document.getElementById('alert-countdown-val').textContent = alertCountdownValue;
+        if (alertCountdownValue <= 0) {
+          clearInterval(alertCountdownInterval);
+          toast('⏳ Auto-declined due to no response', 5000);
+          declineMission();
+        }
+      }, 1000);
     }
 
     // ── En Route screen ───────────────────────────────────────────────────
@@ -1724,6 +1760,7 @@
 
     // ── Actions ───────────────────────────────────────────────────────────
     async function acceptMission() {
+      if (alertCountdownInterval) clearInterval(alertCountdownInterval);
       if (!currentMission) return;
       stopAlarm();
       const res = await fetch('/api/mission/accept', {
@@ -1739,6 +1776,7 @@
     }
 
     async function declineMission() {
+      if (alertCountdownInterval) clearInterval(alertCountdownInterval);
       if (!currentMission) return;
       stopAlarm();
       const res = await fetch('/api/mission/decline', {
@@ -1756,10 +1794,14 @@
     }
 
     async function markArrived() {
+      showScreen('screen-closure');
+    }
+    
+    async function submitClosure(reason) {
       if (!currentMission) return;
       await fetch('/api/mission/arrived', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ crash_id: currentMission.crash_id })
+        body: JSON.stringify({ crash_id: currentMission.crash_id, closure_reason: reason })
       });
       if (routeRefreshTimer) { clearInterval(routeRefreshTimer); routeRefreshTimer = null; }
       toast('🏁 Arrived! Mission resolved.');

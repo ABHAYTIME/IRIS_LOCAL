@@ -529,15 +529,19 @@ def arrived():
         return jsonify({"ok": False}), 401
     data = request.json or {}
     crash_id = data.get("crash_id")
+    closure_reason = data.get("closure_reason")
     
     conn = get_db()
     conn.execute("UPDATE DISPATCH SET status='arrived' WHERE incident_id=?", (crash_id,))
-    conn.execute("UPDATE INCIDENT SET status='resolved' WHERE incident_id=?", (crash_id,))
+    if closure_reason:
+        conn.execute("UPDATE INCIDENT SET status='resolved', closure_reason=? WHERE incident_id=?", (closure_reason, crash_id))
+    else:
+        conn.execute("UPDATE INCIDENT SET status='resolved' WHERE incident_id=?", (crash_id,))
     conn.execute("UPDATE AMBULANCE SET availability='available' WHERE ambulance_id=?", (driver["ambulance_id"],))
     conn.commit()
     conn.close()
     
-    push_all("status_update", {"crash_id": crash_id, "status": "resolved"})
+    push_all("status_update", {"crash_id": crash_id, "status": "resolved", "closure_reason": closure_reason})
     return jsonify({"ok": True, "status": "resolved"})
 
 # ── Snapshot ────────────────────────────────────────────────────────────────────
@@ -686,7 +690,7 @@ def operator_stats():
 def operator_incidents():
     conn = get_db()
     rows = conn.execute("""
-        SELECT i.incident_id, i.lat, i.long, i.status, i.timestamp, i.camera_id,
+        SELECT i.incident_id, i.lat, i.long, i.status, i.closure_reason, i.timestamp, i.camera_id,
                d.status as disp_status, d.dispatch_id,
                a.unit_name, a.ambulance_id,
                u.name as driver_name, u.phone,

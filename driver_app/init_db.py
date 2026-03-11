@@ -84,6 +84,7 @@ def init():
             lat DECIMAL NOT NULL,
             long DECIMAL NOT NULL,
             status VARCHAR NOT NULL DEFAULT 'new',
+            closure_reason VARCHAR,           -- Additional info on dispatch resolution
             timestamp TEXT NOT NULL,          -- Kept for UI history
             FOREIGN KEY(camera_id) REFERENCES CAMERA(camera_id)
         )

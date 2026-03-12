@@ -3,7 +3,7 @@ import cv2
 import os
 
 # Load model
-model = YOLO("best.pt")
+model = YOLO("m1.pt")
 
 # Image path
 IMAGE_PATH = "test.jpg"

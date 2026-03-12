@@ -13,11 +13,15 @@ API_URL = "http://127.0.0.1:5000/api/new_alert"
 
 # Define locations for each camera/video footage
 CAMERA_LOCATIONS = {
-    "test1.mp4": {"lat": 10.5276, "lon": 76.2144, "location": "Thrissur Medical College"},
-    "test2.mp4": {"lat": 9.9312, "lon": 76.2673, "location": "General Hospital, Ernakulam"},
-    "test.mp4": {"lat": 10.0159, "lon": 76.3419, "location": "Aluva Junction"},
+    "test1.mp4": {"lat": 10.5276, "lon": 76.2144, "location": "Thrissur Medical College", "camera_id": 1},
+    "test2.mp4": {"lat": 9.9312, "lon": 76.2673, "location": "General Hospital, Ernakulam", "camera_id": 2},
+    "test3.mp4": {"lat": 10.0261, "lon": 76.3083, "location": "Edappally Junction", "camera_id": 3},
+    "test4.mp4": {"lat": 9.9674, "lon": 76.3182, "location": "Vyttila Mobility Hub", "camera_id": 4},
+    "test5.mp4": {"lat": 9.9972, "lon": 76.2995, "location": "Kaloor Stadium", "camera_id": 5},
+    "test6.mp4": {"lat": 10.0051, "lon": 76.3106, "location": "Palarivattom Bypass", "camera_id": 6},
+    "test.mp4": {"lat": 10.0159, "lon": 76.3419, "location": "Aluva Junction", "camera_id": 1},
     # Fallback location if video is not manually mapped
-    "default": {"lat": 10.5276, "lon": 76.2144, "location": "Unknown Location"}
+    "default": {"lat": 10.5276, "lon": 76.2144, "location": "Unknown Location", "camera_id": 1}
 }
 
 def parse_args():
@@ -25,8 +29,8 @@ def parse_args():
     parser.add_argument("videos", nargs="*", default=["test1.mp4"],
                         help="One or more video file paths")
     parser.add_argument("--model", default="m1.pt",    help="YOLO weights (.pt)")
-    parser.add_argument("--conf", type=float, default=0.05, help="Confidence threshold")
-    parser.add_argument("--imgsz", type=int, default=640, help="Inference image size")
+    parser.add_argument("--conf", type=float, default=0.28, help="Confidence threshold")
+    parser.add_argument("--imgsz", type=int, default=670, help="Inference image size")
     return parser.parse_args()
 
 def process_video(model, video_path, conf, imgsz):
@@ -47,7 +51,7 @@ def process_video(model, video_path, conf, imgsz):
 
     frame_id = 0
     alert_sent = False
-    frame_skip = 1
+    frame_skip = 3
 
     while True:
         ret, frame = cap.read()
@@ -72,13 +76,21 @@ def process_video(model, video_path, conf, imgsz):
                 
                 # Check specifically for Accidents (Class 1)
                 if class_id == 1 and conf_val >= 0.25:
-                    accident_detected = True
-                    
-                    # --- ACTION 1: DRAW BOXES MANUALLY ---
                     x1, y1, x2, y2 = map(int, box.xyxy[0])
-                    cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 0, 255), 3)
-                    cv2.putText(frame, f"ACCIDENT {conf_val:.2f}", (x1, y1 - 10), 
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 0, 255), 2)
+                    
+                    # ROI Check: Only process if the center of the bounding box is not at the extreme edges
+                    cx = (x1 + x2) / 2
+                    cy = (y1 + y2) / 2
+                    margin_x = w * 0.15  # Ignore left/right 15%
+                    margin_y = h * 0.15  # Ignore top/bottom 15%
+                    
+                    if (margin_x < cx < w - margin_x) and (margin_y < cy < h - margin_y):
+                        accident_detected = True
+                        
+                        # --- ACTION 1: DRAW BOXES MANUALLY ---
+                        cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 0, 255), 3)
+                        cv2.putText(frame, f"ACCIDENT {conf_val:.2f}", (x1, y1 - 10), 
+                                    cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 0, 255), 2)
                     
                     # --- ACTION 2: SAVE SNAPSHOT & SEND ALERT (EXACTLY ONCE) ---
                     if not alert_sent:
@@ -88,10 +100,11 @@ def process_video(model, video_path, conf, imgsz):
                         snap_path = os.path.abspath(f"outputs/crash_{int(ts)}.jpg")
                         os.makedirs("outputs", exist_ok=True)
                         cv2.imwrite(snap_path, frame)
-                        print(f"zSNAPSHOT SAVED: {snap_path}")
+                        print(f"SNAPSHOT SAVED: {snap_path}")
                         
                         # Send to Flask with specific camera location
                         payload = {
+                            "camera_id": loc_info.get("camera_id"),
                             "location": loc_info["location"],
                             "lat": loc_info["lat"],
                             "lon": loc_info["lon"],
